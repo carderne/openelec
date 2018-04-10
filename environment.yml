@@ -7,7 +7,6 @@ dependencies:
   - pandas
   - astroML
   - shapely
-  - math
   - IPython
   - pip:
     - folium
