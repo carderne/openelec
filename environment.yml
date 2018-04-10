@@ -8,6 +8,6 @@ dependencies:
   - astroML
   - shapely
   - IPython
-  - pip:
-    - folium
-    - geopandas
+  - folium
+  - geopandas
+  - rtree
