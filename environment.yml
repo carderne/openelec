@@ -1,0 +1,14 @@
+name: pyonsset-env
+
+dependencies:
+  - python=3.6
+  - matplotlib
+  - numpy
+  - pandas
+  - astroML
+  - shapely
+  - math
+  - IPython
+  - pip:
+    - folium
+    - geopandas
