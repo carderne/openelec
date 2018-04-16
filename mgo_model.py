@@ -29,36 +29,18 @@ class MgoModel:
         self.input_file = 'uploads/{}.shp'.format(self.village)
 
         return SAMPLE_LATLONG[self.village]
-    
-    def get_village(self):
-        return self.village        
+        
 
-    def map_with_pv(self, latitude, longitude):
-        self.gen_lat = float(latitude)
-        self.gen_long = float(longitude)
-
-        buildings = gpd.read_file(self.input_file)
-        x_mean = buildings.geometry.centroid.x.mean()
-        y_mean = buildings.geometry.centroid.y.mean()
-
-        village_map = folium.Map([y_mean, x_mean], zoom_start=15, control_scale=True)
-        icon = folium.Icon(icon='bolt', color='green', prefix='fa')
-        folium.Marker([self.gen_lat, self.gen_long], icon=icon, popup='Generator location').add_to(village_map)
-
-        output_file_html = '{}/{}_generator_{}_{}.html'.format(self.session_dir, self.village, self.gen_lat, self.gen_long)
-        village_map.save(output_file_html)
-        return output_file_html
-
-    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length):
+    def run_model(self, latitude, longitude, minimum_area_m2, demand_multiplier, price_pv_multiplier, price_wire, price_conn, price_maintenance, years, max_tot_length):
+        latitude = float(latitude)
+        longitude = float(longitude)
         minimum_area_m2 = float(minimum_area_m2)
-        demand_per_person_kwh_month = float(demand_per_person_kwh_month)
-        tariff = float(tariff)
-        gen_cost_per_kw = float(gen_cost_per_kw)
-        cost_wire = float(cost_wire)
-        cost_connection = float(cost_connection)
-        opex_ratio = float(opex_ratio)
-        years = int(years)
-        discount_rate = float(discount_rate)
+        demand_multiplier = float(demand_multiplier)
+        price_pv_multiplier = float(price_pv_multiplier)
+        price_wire = float(price_wire)
+        price_conn = float(price_conn)
+        price_maintenance = float(price_maintenance)
+        years = float(years)
         max_tot_length = float(max_tot_length)
 
         buildings = gpd.read_file(self.input_file)
@@ -80,7 +62,7 @@ class MgoModel:
         df = pd.DataFrame(buildings_points)
         df = df.loc[df['area_m2'] > minimum_area_m2]
 
-        pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([self.gen_long, self.gen_lat])])
+        pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([longitude, latitude])])
         pv_point_projected = pv_point.copy()
         pv_point_projected = pv_point_projected.to_crs(epsg102022)
         pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area_m2': 0}]
@@ -95,8 +77,8 @@ class MgoModel:
         # ### This point and line data is then copied into two arrays, called *nodes* and *network_undirected*, containing the houses and lines, respectively. Each element represents a single house or joining arc, and has data within describing the coordinates and more.
         # astype(int) doesn't round - it just chops off the decimals
 
-        df['area'] = df['area_m2'].astype(int)
-        nodes = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
+        df['income'] = df['area_m2'].astype(int) * demand_multiplier
+        nodes = df[['X', 'Y', 'income']].reset_index().values.astype(int).tolist()
         for node in nodes:
             # add default 0's for marg_dist, tot_dist and connected
             node.extend([0, 0, 0])
@@ -174,61 +156,52 @@ class MgoModel:
         # cut arcs one by one, see which cut is the *most* profitable, and then take that network and repeat the process
         # annual income should be specified by the nodes
 
-        num_people_per_m2 = 0.1  # bit of a guess that there are 4 people in 40m2 house
-        demand_per_person_kw_peak = demand_per_person_kwh_month / 130  # 130 is based on MTF numbers, should use a real demand curve
-        gen_size_kw = df['area_m2'].sum() * num_people_per_m2 * demand_per_person_kw_peak
-        cost_gen = gen_size_kw * gen_cost_per_kw
-
-
-        def calculate_profit(nodes, network, index, disabled_arc_index, cost, income_per_month):
+        def calculate_profit(nodes, network, index, disabled_arc_index, cost, income):
             # here we recurse through the network and calculate profit
             # start with all arcs that connect to the index node, and get the end-nodes for those arcs
             # calculate profit on those nodes, and then recurse!
             # disabled_arc should be treated as if disabled
             
             # first calculate tehe profitability of thise node?
-            cost += cost_wire * nodes[index][4] + cost_connection
-            income_per_month += nodes[index][3] * num_people_per_m2 * demand_per_person_kwh_month * tariff
+            cost += price_wire * nodes[index][4] + price_conn
+            income += nodes[index][3]
             
             connected_arcs = [network[arc_index] for arc_index in nodes[index][7:]]
             for arc in connected_arcs:
                 if arc[9] == 1 and arc[0] != disabled_arc_index and arc[5] == index:
-                    cost, income_per_month, nodes, network = calculate_profit(nodes, network, arc[6], disabled_arc_index, cost, income_per_month)
+                    cost, income, nodes, network = calculate_profit(nodes, network, arc[6], disabled_arc_index, cost, income)
                     
-            return cost, income_per_month, nodes, network
+            return cost, income, nodes, network
 
 
         # ### Then we start with the complete network, and try 'deleting' each arc. Whichever deletion is the most profitable, we make it permanent and repeat the process with the new configuration. This continues until there are no more increases in profitability to be had.
-
-        best_npv = -9999999
+        price_pv = df['area_m2'].sum() * price_pv_multiplier
         counter = 0
+
+        most_profitable = -9999999
         while True:
             found = False
             for arc in network_directed:
                 # use a recursive function to calculate profitability of network
                 # this should all be done in a temporary network variable
                 # and indicate that this arc should be treated as if disabled
-                cost, income_per_month, nodes, network = calculate_profit(nodes, network_directed, 0, arc[0], 0, 0)
+                cost, income, nodes, network = calculate_profit(nodes, network_directed, 0, arc[0], 0, 0)
 
-                capex = cost_gen + cost
-                opex = (opex_ratio * capex)
-                income = income_per_month * 12
-                profit = income - capex - opex
-                
-                flows = np.ones(years) * (income - opex)
-                flows[0] = -capex
-                npv = np.npv(discount_rate, flows)
+                capex = price_pv + cost
+                opex = (price_maintenance * capex) * years
+                total_income = income * years
+                profit = total_income - capex - opex
                 
                 counter += 1
                 
-                # check if this is the most profitable yet
-                if npv > best_npv:
+                # check if this is the most profitableb yet
+                if profit > most_profitable:
                     found = True
-                    best_npv = npv
-                    best_npv_index = arc[0]
+                    most_profitable = profit
+                    most_profitable_index = arc[0]
             if found:
                 # disable that arc
-                network_directed[best_npv_index][9] = 0
+                network_directed[most_profitable_index][9] = 0
 
             # now repeat the above steps for the whole network again
             # until we go through without finding a more profitable setup than what we already have
@@ -266,44 +239,35 @@ class MgoModel:
         # create a quick report
         # number connected, length of line, total profit over ten years
         count_nodes = 0
-        income_per_month = 0
-        gen_size_kw = 0
+        income = 0
         for node in nodes:
             if node[6] == 1:
                 count_nodes += 1
-                income_per_month += node[3] * num_people_per_m2 * demand_per_person_kwh_month * tariff
-                gen_size_kw += node[3] * num_people_per_m2 * demand_per_person_kw_peak
-        
-        count_nodes -= 1  # so we don't count the generator
+                income += node[3]
 
         total_length = 0.0
+        total_potential_length = 0.0
         for arc in network_directed:
             if arc[9] == 1:
                 total_length += arc[8]
- 
-        capex = gen_size_kw * gen_cost_per_kw + cost_connection * count_nodes + cost_wire * total_length
-        opex = (opex_ratio * capex)
-        income = income_per_month * 12
+            total_potential_length += arc[8]
 
-        flows = np.ones(years) * (income - opex)
-        flows[0] = -capex
-        npv = np.npv(discount_rate, flows)
-
-
+        capex = price_pv + price_conn * count_nodes + total_length * price_wire
+        opex = (price_maintenance * capex) * years
+        total_income = income * years
         results = {'connected': count_nodes,
-                   'gen_size': int(gen_size_kw),
-                   'length': int(total_length),
-                   'capex': int(capex),
-                   'opex': int(opex),
-                   'income': int(income),
-                   'npv': int(npv)}
+                    'length': int(total_length),
+                    'capex': int(capex),
+                    'opex': int(opex),
+                    'income': int(total_income),
+                    'profit': int(most_profitable)}
 
 
         # ### And then do a spatial join to get the results back into a polygon shapefile
         # join the resultant points with the orignal buildings_projected
         # create geometries from X and Y points and create gdf
         nodes_for_df = [node[0:7] for node in nodes] # drop the extra columsn that will confuse a df
-        nodes_df = pd.DataFrame(columns=['idx', 'X', 'Y', 'area', 'marg_dist', 'tot_dist',
+        nodes_df = pd.DataFrame(columns=['idx', 'X', 'Y', 'income', 'marg_dist', 'tot_dist',
                                           'connected'], data=nodes_for_df)
         nodes_geometry = [Point(xy) for xy in zip(nodes_df['X'], nodes_df['Y'])]
         nodes_gdf = gpd.GeoDataFrame(nodes_df, crs=buildings_projected.crs, geometry=nodes_geometry)
@@ -337,80 +301,39 @@ class MgoModel:
 
         village_map = folium.Map([y_mean, x_mean], zoom_start=15, control_scale=True)
         icon = folium.Icon(icon='bolt', color='green', prefix='fa')
-        folium.Marker([self.gen_lat, self.gen_long], icon=icon, popup='Generator location').add_to(village_map)
+        folium.Marker([latitude, longitude], icon=icon, popup='PV plant location').add_to(village_map)
+        
 
         if len(network_wgs84.index) > 0 and len(buildings_wgs84.index) > 0:
-            folium.GeoJson(network_wgs84, name='Network').add_to(village_map)
+            folium.GeoJson(network_wgs84).add_to(village_map)
 
             def highlight_function(feature):
                 return {'fillColor': '#b2e2e2', 'fillOpacity': 0.5, 'color': 'black', 'weight': 3}
 
-            demand_max = buildings_wgs84['area'].max() * num_people_per_m2 * demand_per_person_kwh_month
             styles = []
             for index, row in buildings_wgs84.iterrows():
-                demand = row['area'] * num_people_per_m2 * demand_per_person_kwh_month
-                if demand > demand_max * 0.8:
+                if row['income'] > 300:
                     fill_color = '#006d2c'
-                elif demand > demand_max * 0.6:
+                elif row['income'] > 180:
                     fill_color = '#2ca25f'
-                elif demand > demand_max * 0.4:
+                elif row['income'] > 100:
                     fill_color = '#66c2a4'
-                elif demand > demand_max * 0.2:
+                elif row['income'] > 40:
                     fill_color = '#b2e2e2'
                 else:
                     fill_color = '#edf8fb'
                 styles.append({'fillColor': fill_color, 'weight': 1, 'color': 'black', 'fillOpacity': 1})
                 
             buildings_wgs84['style'] = styles
-            folium.GeoJson(buildings_wgs84, name='Household demand', highlight_function=highlight_function).add_to(village_map)
+            folium.GeoJson(buildings_wgs84, highlight_function=highlight_function).add_to(village_map)
 
-            colormap = linear.BuGn.scale(0, demand_max)
-            colormap.caption = 'Household demand (kWh/month)'
-            colormap.add_to(village_map)
-
-            max_dist = buildings_wgs84['tot_dist'].max()
-            styles = []
-            for index, row in buildings_wgs84.iterrows():
-                if row['tot_dist'] > max_dist * 0.8:
-                    fill_color = '#b30000'
-                elif row['tot_dist'] > max_dist * 0.6:
-                    fill_color = '#e34a33'
-                elif row['tot_dist'] > max_dist * 0.4:
-                    fill_color = '#fc8d59'
-                elif row['tot_dist'] > max_dist * 0.2:
-                    fill_color = '#fdcc8a'
-                else:
-                    fill_color = '#fef0d9'
-                styles.append({'fillColor': fill_color, 'weight': 1, 'color': 'black', 'fillOpacity': 1})
-                
-            buildings_wgs84['style'] = styles
-            folium.GeoJson(buildings_wgs84, name='Household distance', highlight_function=highlight_function).add_to(village_map)
-
-            colormap2 = linear.OrRd.scale(0, max_dist)
-            colormap2.caption = 'Household distance from generator (m)'
-            colormap2.add_to(village_map)
-
-            folium.LayerControl(collapsed=False, position='topleft').add_to(village_map)
+        colormap = linear.BuGn.scale(20, 500)
+        colormap.caption = 'Household annual demand (USD)'
+        colormap.add_to(village_map)
 
         # ### And then save the shapefiles, the HTML map and zip it all together too
-        file_tag = '{}_{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(self.village, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate)
-        output_file_buildings = '{}/{}_buildings.shp'.format(self.session_dir, file_tag)
-        output_file_network = '{}/{}_network.shp'.format(self.session_dir, file_tag)
-        output_file_pv = '{}/{}_gen.shp'.format(self.session_dir, file_tag)
-        output_file_zip = '{}/{}.zip'.format(self.session_dir, file_tag)
-        output_file_html = '{}/{}.html'.format(self.session_dir, file_tag)
-        village_map.save(output_file_html)        
+        output_file_html = '{}/{}_{}_{}_{}_{}_{}_{}_{}.html'.format(self.session_dir, self.village, minimum_area_m2, demand_multiplier, price_pv_multiplier, price_wire, price_conn, price_maintenance, years)
+        village_map.save(output_file_html)
 
-        if len(network_wgs84.index) > 0 and len(buildings_wgs84.index) > 0:
-            buildings_wgs84.to_file(output_file_buildings)
-            network_wgs84.to_file(output_file_network)
-            pv_point.to_file(output_file_pv)
-
-        with ZipFile(output_file_zip, 'w') as myzip:
-            villages = []
-            for file in os.listdir(self.session_dir):
-                if file_tag in file and '.zip' not in file:
-                    myzip.write(os.path.join(self.session_dir, file), arcname=os.path.basename(file))
-
-        return output_file_html, results, self.village, output_file_zip
+        return output_file_html, results, self.village
 

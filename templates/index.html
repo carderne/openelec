@@ -20,7 +20,7 @@
 			left: 0;
 			width: 350px; /* Width of navigation frame */
 			height: 100%;
-			overflow: hidden;
+			overflow: scroll;
 			background: #eee;
 		}
 		main{
@@ -89,42 +89,40 @@
                     </select>
                     <input type="submit" name='choose' value="Start!" method="POST">
                     <br>
-                    <p>Click on the desired location for the generator.</p>
+                    <p>Click on the desired location for the PV plant, and then click on your new point.</p>
                     
                 </form>
 
 				<form method = "POST">
-                    {% if show_params == True%}
+                    {% if ready_to_run == True%}
+                    Latitude <input type="text" name="latitude" value="{{latitude}}" size="5" align="right"><br>
+                    Longitude <input type="text" name="longitude" value="{{longitude}}" size="5"><br>
      
                     <h3>Choose parameters</h3>
-  					Min house size (m<sup>2</sup>) <input type="text" name="minimum_area_m2" value="{{minimum_area_m2}}" size="5"><br>
-  					Demand (kWh/person/month) <input type="text" name="demand" value="{{demand}}" size="5"><br>
-					Tariff (USD/kWh) <input type="text" name="tariff" value="{{tariff}}" size="5"><br>
-                    Generator cost (USD/kW) <input type="text" name="gen_cost" value="{{gen_cost}}" size="5"><br>
-					Wire cost (USD/m) <input type="text" name="cost_wire" value="{{cost_wire}}" size="5"><br>
-					Connection cost (USD/house) <input type="text" name="cost_connection" value="{{cost_connection}}" size="5"><br>
-					Opex (% of capex) <input type="text" name="opex_ratio" value="{{opex_ratio}}" size="5"><br>
-					Project lifetime (years) <input type="text" name="years" value="{{years}}" size="5"><br>
-					Discount rate (%)<input type="text" name="discount_rate" value="{{discount_rate}}" size="5"><br>
-                    Max dist from generator (m)<input type="text" name="max_tot_length" value="{{max_tot_length}}" size="5"><br>
-                    <input type="submit" name='run' value="Run (and be patient)">
+                    <p>Multipliers determine the demand as functions of house size.</p>
+  					Min house size in m2: <input type="text" name="minimum_area_m2" value="{{minimum_area_m2}}" size="5"><br>
+  					Demand multiplier <input type="text" name="demand_multiplier" value="{{demand_multiplier}}" size="5"><br>
+					PV price multiplier <input type="text" name="price_pv_multiplier" value="{{price_pv_multiplier}}" size="5"><br>
+					Wire price/metre <input type="text" name="price_wire" value="{{price_wire}}" size="5"><br>
+					Price/connection <input type="text" name="price_conn" value="{{price_conn}}" size="5"><br>
+					Opex as % of capex <input type="text" name="price_maintenance" value="{{price_maintenance}}" size="5"><br>
+					Project lifetime years <input type="text" name="years" value="{{years}}" size="5"><br>
+					Max length longest wire<input type="text" name="max_tot_length" value="{{max_tot_length}}" size="5"><br>
+                    <input type="submit" name='run' value="Run! (and be patient)">
                     {% endif %}
 				</form>
                 
                 </ul>
                 
-                {% if show_results == True%}
+                {% if has_results == True%}
                     <h3>Check your results</h3>
                     <ul>
-                    <li>Houses connected: {{connected}}</li>    
-                    <li>Generator size: {{gen_size}} kW</li>                
+                    <li>Houses connected: {{connected}}</li>                    
                     <li>Total length of wires: {{length}} m</li>
                     <li>CAPEX: ${{capex}}</li>
                     <li>OPEX: ${{opex}}</li>
                     <li>Revenue: ${{income}}</li>
-                    <li>NPV: ${{npv}} </li>
-                    <br>
-                    <li><a href="{{zipped}}" download>Download shapefiles</a></li>
+                    <li>Profit: ${{profit}} </li>
                     </ul>
                 {% endif %}
 			</div>
