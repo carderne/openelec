@@ -58,7 +58,7 @@ def index():
 
         # set Nakiu as default village
         # in case someone goes directly to a ?lat=... link or something
-        session['model'].set_village('Nakiu')
+        session['model'].set_village('Nakiu', 'uploads')
 
     # clicking for generator location uses GET
     if request.method == 'GET':
@@ -87,7 +87,7 @@ def index():
             if village in villages:
                 empty_map = 'static/empty_map_{}.html'.format(village)
                 # and set hte MgoModel to the correct village
-                session['model'].set_village(village)
+                session['model'].set_village(village, 'uploads')
 
                 # render with the empty_map, default parameter values and no results values
 
@@ -110,7 +110,7 @@ def index():
             max_tot_length = request.form['max_tot_length']
 
             new_map, results, village, zipped = session['model'].run_model(minimum_area_m2, demand, tariff, gen_cost, cost_wire,
-                                                                    cost_connection, opex_ratio, years, discount_rate, max_tot_length)
+                                                                    cost_connection, opex_ratio, years, discount_rate, max_tot_length, False)
 
             return render_template('index.html', map_file=new_map,
                             village_msg='You chose {}'.format(village), villages=session['villages'],

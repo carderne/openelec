@@ -27,9 +27,9 @@ class MgoModel:
         self.session_dir = session_dir
 
 
-    def set_village(self, village):
+    def set_village(self, village, uploads_dir):
         self.village = village
-        self.input_file = 'uploads/{}.shp'.format(self.village)
+        self.input_file = '{}/{}.shp'.format(uploads_dir, self.village)
     
     def get_village(self):
         return self.village
@@ -52,7 +52,7 @@ class MgoModel:
         village_map.save(output_file_html)
         return output_file_html
 
-    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length):
+    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length, dry_run):
         minimum_area_m2 = float(minimum_area_m2)
         demand_per_person_kwh_month = float(demand_per_person_kwh_month)
         tariff = float(tariff)
@@ -97,14 +97,7 @@ class MgoModel:
             T_x, T_y = get_graph_segments(model.X_train_, model.full_tree_)
         else:
             output_file_html = '{}/{}_generator_{}_{}.html'.format(self.session_dir, self.village, self.gen_lat, self.gen_long)
-            results = {'connected': 0,
-                   'gen_size': 0,
-                   'length': 0,
-                   'capex': 0,
-                   'opex': 0,
-                   'income': 0,
-                   'npv': 0}
-
+            results = {'connected': 0, 'gen_size': 0, 'length': 0, 'capex': 0, 'opex': 0, 'income': 0, 'npv': 0}
             return output_file_html, results, self.village, False
             
 
@@ -305,7 +298,6 @@ class MgoModel:
         flows[0] = -capex
         npv = np.npv(discount_rate, flows)
 
-
         results = {'connected': count_nodes,
                    'gen_size': int(gen_size_kw),
                    'length': int(total_length),
@@ -313,6 +305,10 @@ class MgoModel:
                    'opex': int(opex),
                    'income': int(income),
                    'npv': int(npv)}
+
+        # for modelling, we don't want to waste time making shapefiles and html maps
+        if dry_run:
+            return '', results, self.village, ''
 
 
         # ### And then do a spatial join to get the results back into a polygon shapefile
