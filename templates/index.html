@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>MiniGridOptimizer</title>
+		<style type="text/css">
+		body{
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			height: 100%; 
+			max-height: 100%; 
+			font-family:Sans-serif;
+			line-height: 1.5em;
+		}
+		#nav{
+			position: absolute;
+			top: 0;
+			bottom: 0; 
+			left: 0;
+			width: 350px; /* Width of navigation frame */
+			height: 100%;
+			overflow: hidden;
+			background: #eee;
+		}
+		main{
+			position: fixed;
+			top: 0; 
+			left: 180px; /* Set this to the width of the navigation frame */
+			right: 0;
+			bottom: 0;
+			overflow: auto; 
+			background: #fff;
+		}
+		iframe {
+    			display:block;
+			position: absolute;
+    			width:90%;
+			height:100%;
+			top: 0;
+			bottom: 0;
+			left: 170px;
+			right: 0;
+		}
+		.innertube{
+			margin: 15px; /* Provides padding for the content */
+		}
+		p {
+			color: #555;
+		}
+
+		nav ul {
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+		}
+		nav ul a {
+			color: darkgreen;
+			text-decoration: none;
+		}	
+		/*IE6 fix*/
+		* html body{
+			padding: 0 0 0 230px; /* Set the last value to the width of the navigation frame */
+		}
+		* html main{ 
+			height: 100%; 
+			width: 100%; 
+		}
+		</style>	
+	</head>
+	<body>				
+		<main>
+			<div class="innertube">
+				<iframe src="{{map_file}}" frameborder="0"></iframe>
+			</div>
+		</main>
+	
+		<nav id="nav">
+			<div class="innertube">
+            <h3>Start here</h3>
+			<ul>
+                <form method = "POST">
+                    Choose a village and click Start!
+				    <select class="form-control" id="village" name="village" method="POST">
+                        <option selected hidden>{{village_msg}}</option>                        
+                        {% for village in villages %}
+                            <option value= "{{village}}">{{village}}</option>"
+                        {% endfor %}
+                    </select>
+                    <input type="submit" name='choose' value="Start!" method="POST">
+                    <br>
+                    <p>Click on the desired location for the generator.</p>
+                    
+                </form>
+
+				<form method = "POST">
+                    {% if show_params == True%}
+     
+                    <h3>Choose parameters</h3>
+                    <p>Multipliers determine the demand as functions of house size.</p>
+  					Min house size in m2: <input type="text" name="minimum_area_m2" value="{{minimum_area_m2}}" size="5"><br>
+  					Demand multiplier <input type="text" name="demand_multiplier" value="{{demand_multiplier}}" size="5"><br>
+					PV price multiplier <input type="text" name="price_pv_multiplier" value="{{price_pv_multiplier}}" size="5"><br>
+					Wire price/metre <input type="text" name="price_wire" value="{{price_wire}}" size="5"><br>
+					Price/connection <input type="text" name="price_conn" value="{{price_conn}}" size="5"><br>
+					Opex as % of capex <input type="text" name="price_maintenance" value="{{price_maintenance}}" size="5"><br>
+					Project lifetime years <input type="text" name="years" value="{{years}}" size="5"><br>
+					Max length longest wire<input type="text" name="max_tot_length" value="{{max_tot_length}}" size="5"><br>
+                    <input type="submit" name='run' value="Run! (and be patient)">
+                    {% endif %}
+				</form>
+                
+                </ul>
+                
+                {% if show_results == True%}
+                    <h3>Check your results</h3>
+                    <ul>
+                    <li>Houses connected: {{connected}}</li>                    
+                    <li>Total length of wires: {{length}} m</li>
+                    <li>CAPEX: ${{capex}}</li>
+                    <li>OPEX: ${{opex}}</li>
+                    <li>Revenue: ${{income}}</li>
+                    <li>Profit: ${{profit}} </li>
+                    <br>
+                    <li><a href="{{zipped}}" download>Download shapefiles</a></li>
+                    </ul>
+                {% endif %}
+			</div>
+		</nav>
+	</body>
+</html>
