@@ -35,6 +35,10 @@ def download(path, filename):
 def sensitivity():
     return render_template('sensitivity.html')
 
+@app.route('/payback')
+def payback():
+    return render_template('payback.html')
+
 # this function handles standard visits and all GET and POST methods at th top level URL
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -127,5 +131,5 @@ def index():
                             show_gen_instruction=False, show_params=False, show_results=False)
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
 
