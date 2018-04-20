@@ -30,6 +30,7 @@ class MgoModel:
     def set_village(self, village, uploads_dir):
         self.village = village
         self.input_file = '{}/{}.shp'.format(uploads_dir, self.village)
+        self.buildings = gpd.read_file(self.input_file)
     
     def get_village(self):
         return self.village
@@ -64,7 +65,7 @@ class MgoModel:
         discount_rate = float(discount_rate) / 100  # because user specifies as %
         max_tot_length = float(max_tot_length)
 
-        buildings = gpd.read_file(self.input_file)
+        buildings = self.buildings
         buildings_projected = buildings.copy()
         # This is the Africa Albers Equal Area Conic EPSG: 102022
         epsg102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
