@@ -31,14 +31,6 @@ app.session_interface = BeakerSessionInterface()
 def download(path, filename):
     return send_from_directory(directory=path, filename=filename)
 
-@app.route('/sensitivity')
-def sensitivity():
-    return render_template('sensitivity.html')
-
-@app.route('/payback')
-def payback():
-    return render_template('payback.html')
-
 # this function handles standard visits and all GET and POST methods at th top level URL
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -57,7 +49,7 @@ def index():
                 villages.append(os.path.splitext(file)[0])
 
         # and instantiate a personal MgoModel for this session
-        session['villages'] = villages
+        session['villages'] = sorted(villages)
         session['model'] = MgoModel(session['session_dir'])
 
         # set Nakiu as default village
@@ -126,7 +118,7 @@ def index():
                             capex=results['capex'], opex=results['opex'], income=results['income'], npv=results['npv'],
                             zipped=zipped)
 
-    return render_template('index.html', map_file='static/start_map.html',
+    return render_template('index.html', map_file='static/main_map.html',
                             village_msg='Choose a village', villages=session['villages'],
                             show_gen_instruction=False, show_params=False, show_results=False)
 
