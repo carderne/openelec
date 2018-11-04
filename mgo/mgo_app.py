@@ -2,14 +2,13 @@ import os
 from flask import Flask, session, render_template, request
 from flask.sessions import SessionInterface
 from beaker.middleware import SessionMiddleware
-from mgo_model import MgoModel
+from mgo import MgoModel
 
 # options for the beaker session
 session_opts = {
     'session.type': 'file',
     'session.data_dir': './cache',
 }
-
 
 # honestly not sure how this works
 class BeakerSessionInterface(SessionInterface):
@@ -124,4 +123,3 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
-

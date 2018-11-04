@@ -10,7 +10,7 @@ import folium
 import geopandas as gpd
 import os.path
 from zipfile import ZipFile
-from branca.colormap import linear
+import branca.colormap as cm
 
 CENTROID_LATLONG = {
 'Chilulumo': [-8.6439, 32.3613],
@@ -53,7 +53,7 @@ class MgoModel:
         village_map.save(output_file_html)
         return output_file_html
 
-    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length, dry_run):
+    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length, dry_run, target_coverage=-1):
         minimum_area_m2 = float(minimum_area_m2)
         demand_per_person_kwh_month = float(demand_per_person_kwh_month)
         tariff = float(tariff)
@@ -102,7 +102,8 @@ class MgoModel:
             return output_file_html, results, self.village, False
             
 
-        # ### This point and line data is then copied into two arrays, called *nodes* and *network_undirected*, containing the houses and lines, respectively. Each element represents a single house or joining arc, and has data within describing the coordinates and more.
+        # ### This point and line data is then copied into two arrays, called *nodes* and *network_undirected*, containing the houses and lines, respectively.
+        # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
         # astype(int) doesn't round - it just chops off the decimals
 
         df['area'] = df['area_m2'].astype(int)
@@ -123,8 +124,10 @@ class MgoModel:
             arc[8] = sqrt((arc[3] - arc[1])**2 + (arc[4] - arc[2])**2)
 
 
-        # ### Then we need to calculate the directionality of the network, starting from the PV location and reaching outwards to the furthest branches. We use this to calculate, for each node, it's marginal and total distance from the PV location.
-        # At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'. We also tell each node which arcs (at least one, up to three or four?) it is connected to.
+        # ### Then we need to calculate the directionality of the network, starting from the PV location and reaching outwards to the furthest branches.
+        # We use this to calculate, for each node, it's marginal and total distance from the PV location.
+        # At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
+        # We also tell each node which arcs (at least one, up to three or four?) it is connected to.
         def direct_network(nodes, network, index):
             for arc in network:
                 found = False
@@ -179,13 +182,14 @@ class MgoModel:
             nodes[arc[6]].append(arc[0])
 
 
-        # ### Here we prepare the algorithm to optimise our network configuration, by pruning network extensions that aren't profitable. Here the economic data should be entered.
+        # ### Here we prepare the algorithm to optimise our network configuration, by pruning network extensions that aren't profitable.
+        # Here the economic data should be entered.
         # optimisation strategy #2
         # cut arcs one by one, see which cut is the *most* profitable, and then take that network and repeat the process
         # annual income should be specified by the nodes
 
-        num_people_per_m2 = 0.1  # bit of a guess that there are 4 people in 40m2 house
-        demand_per_person_kw_peak = demand_per_person_kwh_month / 130  # 130 is based on MTF numbers, should use a real demand curve
+        num_people_per_m2 = 0.15  # bit of a guess that there are 4 people in 40m2 house
+        demand_per_person_kw_peak = demand_per_person_kwh_month / (4*30)  # 130 is based on MTF numbers, should use a real demand curve
         gen_size_kw = df['area_m2'].sum() * num_people_per_m2 * demand_per_person_kw_peak
         cost_gen = gen_size_kw * gen_cost_per_kw
 
@@ -208,43 +212,84 @@ class MgoModel:
             return cost, income_per_month, nodes, network
 
 
-        # ### Then we start with the complete network, and try 'deleting' each arc. Whichever deletion is the most profitable, we make it permanent and repeat the process with the new configuration. This continues until there are no more increases in profitability to be had.
+        # ### Then we start with the complete network, and try 'deleting' each arc.
+        # Whichever deletion is the most profitable, we make it permanent and repeat the process with the new configuration.
+        # This continues until there are no more increases in profitability to be had.
 
-        best_npv = -9999999
-        counter = 0
-        while True:
-            found = False
-            for arc in network_directed:
-                # use a recursive function to calculate profitability of network
-                # this should all be done in a temporary network variable
-                # and indicate that this arc should be treated as if disabled
-                cost, income_per_month, nodes, network = calculate_profit(nodes, network_directed, 0, arc[0], 0, 0)
-
-                capex = cost_gen + cost
-                opex = (opex_ratio * capex)
-                income = income_per_month * 12
-                profit = income - capex - opex
-                
-                flows = np.ones(years) * (income - opex)
-                flows[0] = -capex
-                npv = np.npv(discount_rate, flows)
-                
-                counter += 1
-                
-                # check if this is the most profitable yet
-                if npv > best_npv:
-                    found = True
-                    best_npv = npv
-                    best_npv_index = arc[0]
-            if found:
-                # disable that arc
-                network_directed[best_npv_index][9] = 0
-
-            # now repeat the above steps for the whole network again
-            # until we go through without finding a more profitable setup than what we already have
-            else:
-                break
-                
+        if target_coverage == -1:
+            best_npv = -9999999
+            counter = 0
+            while True:
+                found = False
+                for arc in network_directed:
+                    # use a recursive function to calculate profitability of network
+                    # this should all be done in a temporary network variable
+                    # and indicate that this arc should be treated as if disabled
+                    cost, income_per_month, nodes, network = calculate_profit(nodes, network_directed, 0, arc[0], 0, 0)
+    
+                    capex = cost_gen + cost
+                    opex = (opex_ratio * capex)
+                    income = income_per_month * 12
+                    profit = income - capex - opex
+                    
+                    flows = np.ones(years) * (income - opex)
+                    flows[0] = -capex
+                    npv = np.npv(discount_rate, flows)
+                    
+                    counter += 1
+                    
+                    # check if this is the most profitable yet
+                    if npv > best_npv:
+                        found = True
+                        best_npv = npv
+                        best_npv_index = arc[0]
+                if found:
+                    # disable that arc
+                    network_directed[best_npv_index][9] = 0
+    
+                # now repeat the above steps for the whole network again
+                # until we go through without finding a more profitable setup than what we already have
+                else:
+                    break
+        else:
+            total_arcs = len(network_directed)
+            actual_coverage = 1  # to start with
+            
+            counter = 0
+            while True:
+                best_npv = -9999999
+                found = False
+                for arc in network_directed:
+                    # use a recursive function to calculate profitability of network
+                    # this should all be done in a temporary network variable
+                    # and indicate that this arc should be treated as if disabled
+                    cost, income_per_month, nodes, network = calculate_profit(nodes, network_directed, 0, arc[0], 0, 0)
+            
+                    capex = cost_gen + cost
+                    opex = (opex_ratio * capex)
+                    income = income_per_month * 12
+                    profit = income - capex - opex
+                    
+                    flows = np.ones(years) * (income - opex)
+                    flows[0] = -capex
+                    npv = np.npv(discount_rate, flows)
+                    
+                    counter += 1
+            
+                    # check if this is the most profitable yet
+                    if npv > best_npv and arc[9] == 1:
+                        found = True
+                        best_npv = npv
+                        best_npv_index = arc[0]
+                        
+                if found:
+                    # disable that arc
+                    network_directed[best_npv_index][9] = 0
+            
+                actual_coverage = len([arc for arc in network_directed if arc[9] == 1])/total_arcs
+                if actual_coverage <= target_coverage:
+                    break
+                                    
         # ### Then we disconnect all the houses that are no longer served by active arcs, and prune any stranded arcs that remained on un-connected paths.
         # now we need to tell the houses that aren't connected, that they aren't connected (or vice-versa)
         # recurse from the starting point and ID connected houses as connected?
@@ -377,9 +422,9 @@ class MgoModel:
             buildings_wgs84['style'] = styles
             folium.GeoJson(buildings_wgs84, name='Household demand', highlight_function=highlight_function).add_to(village_map)
 
-            colormap = linear.BuGn.scale(0, demand_max)
-            colormap.caption = 'Household demand (kWh/month)'
-            colormap.add_to(village_map)
+            colormap1 = cm.LinearColormap(colors=['green','blue'], vmin=0, vmax=demand_max)
+            colormap1.caption = 'Household demand (kWh/month)'
+            colormap1.add_to(village_map)
 
             max_dist = buildings_wgs84['tot_dist'].max()
             styles = []
@@ -399,7 +444,7 @@ class MgoModel:
             buildings_wgs84['style'] = styles
             folium.GeoJson(buildings_wgs84, name='Household distance', highlight_function=highlight_function).add_to(village_map)
 
-            colormap2 = linear.OrRd.scale(0, max_dist)
+            colormap2 = cm.LinearColormap(colors=['orange','red'], vmin=0, vmax=max_dist)
             colormap2.caption = 'Household distance from generator (m)'
             colormap2.add_to(village_map)
 
