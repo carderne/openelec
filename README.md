@@ -21,23 +21,24 @@ sudo service supervisor restart
 4) chmod +x hooks/post-receive
 
 5) On local, add a name for the remote
-git remote add web ssh://carderne@35.196.117.80/home/carderne/mgo.git
+git remote add web ssh://<user>@<IP>/path/to/app.git
 
 6) Add to ~/.ssh/config
-host 35.196.117.80
- HostName 35.196.117.80
- IdentityFile ~/.ssh/mgo-key
+host <IP>
+ HostName <IP>
+ IdentityFile ~/.ssh/<key>
  User git
 
 7) git push web +master:refs/heads/master
 
 8) log in to server:
-ssh -i ~/.ssh/mgo-key carderne@35.196.117.80
+ssh -i ~/.ssh/<key> <user>@<IP>
 
 
 
 ## Set up Flask with Gunicorn and Nginx
 
 Following this: https://medium.com/ymedialabs-innovation/deploy-flask-app-with-nginx-using-gunicorn-and-supervisor-d7a93aa07c18
+
 And this for letsencrypt: https://www.digitalocean.com/community/tutorials/how-to-secure-nginx-with-let-s-encrypt-on-ubuntu-16-04
 
