@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Mini-Grid Explorer</title>
+		<style type="text/css">
+		body{
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+			height: 100%; 
+			max-height: 100%; 
+			font-family:Sans-serif;
+			line-height: 1.5em;
+		}
+		#nav{
+			position: absolute;
+			top: 0;
+			bottom: 0; 
+			left: 0;
+			width: 370px; /* Width of navigation frame */
+			height: 100%;
+			overflow: scroll;
+			background: #eee;
+		}
+		main{
+			position: fixed;
+			top: 0; 
+			left: 200px; /* Set this to the width of the navigation frame */
+			right: 0;
+			bottom: 0;
+			overflow: auto; 
+			background: #fff;
+		}
+		iframe {
+    			display:block;
+			position: absolute;
+    			width:88%;
+			height:100%;
+			top: 0;
+			bottom: 0;
+			left: 170px;
+			right: 0;
+		}
+		.innertube{
+			margin: 15px; /* Provides padding for the content */
+		}
+		p {
+			color: #555;
+		}
+
+		nav ul {
+			list-style-type: none;
+			margin: 0;
+			padding: 0;
+		}
+		nav ul a {
+			color: darkgreen;
+			text-decoration: none;
+		}	
+		/*IE6 fix*/
+		* html body{
+			padding: 0 0 0 230px; /* Set the last value to the width of the navigation frame */
+		}
+		* html main{ 
+			height: 100%; 
+			width: 100%; 
+		}
+		</style>	
+	</head>
+	<body>				
+		<main>
+			<div class="innertube">
+				<iframe src="{{map_file}}" frameborder="0"></iframe>
+			</div>
+		</main>
+	
+		<nav id="nav">
+		<div class="innertube">        
+		<ul>
+            <h3>Start here</h3>
+            <form method = "POST">
+			<select class="form-control" id="village" name="village" method="POST" onchange="this.form.submit()">
+                <option selected hidden>{{village_msg}}</option>                        
+                {% for village in villages %}
+                <option value= "{{village}}">{{village}}</option>"
+                {% endfor %}
+            </select>
+            </form> 
+
+            {% if show_gen_instruction == True%}
+            <p>Click desired generator location.</p>
+            {% endif %}
+            {% if show_gen_instruction == False and show_params == True %}
+            <p>Generator site chosen.</p>
+            {% endif %} 
+
+            {% if show_params == True%}
+			<form method = "POST">
+                <h3>Choose parameters</h3>
+                <table>
+                <tr><td>Min house size <small>(m<sup>2</sup>)</small></td><td><input type="text" name="minimum_area_m2" value="{{minimum_area_m2}}" size="5"></td></tr>
+                <tr><td>Demand <small>(kWh/pp/mon)</small></td><td><input type="text" name="demand" value="{{demand}}" size="5"></td></tr>
+                <tr><td>Tariff <small>($/kWh)</small></td><td><input type="text" name="tariff" value="{{tariff}}" size="5"></td></tr>
+                <tr><td>Generator cost <small>($/kW)</small></td><td><input type="text" name="gen_cost" value="{{gen_cost}}" size="5"></td></tr>
+                <tr><td>Wire cost <small>($/m)</small></td><td><input type="text" name="cost_wire" value="{{cost_wire}}" size="5"></td></tr>
+                <tr><td>Connection cost <small>($/house)</small></td><td><input type="text" name="cost_connection" value="{{cost_connection}}" size="5"></td></tr>
+                <tr><td>Annual Opex <small>(% of Capex)</small></td><td><input type="text" name="opex_ratio" value="{{opex_ratio}}" size="5"></td></tr>
+                <tr><td>Project lifetime <small>(years)</small></td><td><input type="text" name="years" value="{{years}}" size="5"></td></tr>
+                <tr><td>Discount rate <small>(%)</small></td><td><input type="text" name="discount_rate" value="{{discount_rate}}" size="5"></td></tr>
+                <tr><td>Max wire length <small>(m)<small></td><td><input type="text" name="max_tot_length" value="{{max_tot_length}}" size="5"></td></tr>
+                </table>
+                <input type="submit" name='run' value="Run (and be patient)">
+			</form>
+            {% endif %}
+
+            {% if show_results == True%}
+            <h3>Check your results</h3>
+            <ul>
+            <li>Houses connected: {{connected}}</li>    
+            <li>Generator size: {{gen_size}} kW</li>                
+            <li>Total length of wires: {{length}} m</li>
+            <li>Capex: ${{capex}}</li>
+            <li>Annual Opex: ${{opex}}</li>
+            <li>Annual income: ${{income}}</li>
+            <li>NPV: ${{npv}} </li>
+            <br>
+            {% if zipped%}
+            <li><a href="{{zipped}}" download>Download shapefiles</a></li>
+            {% endif %}
+            </ul>
+            {% endif %}
+
+        </ul>
+		</div>
+		</nav>
+	</body>
+</html>

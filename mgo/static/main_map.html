@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<head>    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script>L_PREFER_CANVAS = false; L_NO_TOUCH = false; L_DISABLE_3D = false;</script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.2.0/dist/leaflet.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.2.0/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css"/>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://rawgit.com/python-visualization/folium/master/folium/templates/leaflet.awesome.rotate.css"/>
+    <style>html, body {width: 100%;height: 100%;margin: 0;padding: 0;}</style>
+    <style>#map {position:absolute;top:0;bottom:0;right:0;left:0;}</style>
+    
+            <style> #map_bda2c1d6ab3a4722a0d63f4346fb514c {
+                position : relative;
+                width : 100.0%;
+                height: 100.0%;
+                left: 0.0%;
+                top: 0.0%;
+                }
+            </style>
+        
+</head>
+<body>    
+    
+            <div class="folium-map" id="map_bda2c1d6ab3a4722a0d63f4346fb514c" ></div>
+        
+</body>
+<script>    
+    
+
+            
+                var bounds = null;
+            
+
+            var map_bda2c1d6ab3a4722a0d63f4346fb514c = L.map(
+                                  'map_bda2c1d6ab3a4722a0d63f4346fb514c',
+                                  {center: [-6.3728,34.8925],
+                                  zoom: 6,
+                                  maxBounds: bounds,
+                                  layers: [],
+                                  worldCopyJump: false,
+                                  crs: L.CRS.EPSG3857
+                                 });
+            L.control.scale().addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+        
+    
+            var tile_layer_fa74fa4bf4c74c09af2c1c70a065a934 = L.tileLayer(
+                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                {
+  "attribution": null,
+  "detectRetina": false,
+  "maxZoom": 18,
+  "minZoom": 1,
+  "noWrap": false,
+  "subdomains": "abc"
+}
+                ).addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+        
+    
+
+            var marker_66fc613fddef412ba26a5ba934de61c4 = L.marker(
+                [-9.476059438915081,34.78924867207731],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_404d71d43a384400a770211801a3d2a5 = L.popup({maxWidth: '300'});
+
+            
+                var html_20da7e2a8a8345e7b4c0aa4e222ddc87 = $('<div id="html_20da7e2a8a8345e7b4c0aa4e222ddc87" style="width: 100.0%; height: 100.0%;">Uwemba</div>')[0];
+                popup_404d71d43a384400a770211801a3d2a5.setContent(html_20da7e2a8a8345e7b4c0aa4e222ddc87);
+            
+
+            marker_66fc613fddef412ba26a5ba934de61c4.bindPopup(popup_404d71d43a384400a770211801a3d2a5);
+
+            
+        
+    
+
+            var marker_32453941a75d4e87a9328a9527e4660b = L.marker(
+                [-9.632042519072565,39.18700101939554],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_300ed579343549f6a4d16a693f3b5fff = L.popup({maxWidth: '300'});
+
+            
+                var html_01d7113da3634320bfc6eaabfe4fc896 = $('<div id="html_01d7113da3634320bfc6eaabfe4fc896" style="width: 100.0%; height: 100.0%;">Nakiu</div>')[0];
+                popup_300ed579343549f6a4d16a693f3b5fff.setContent(html_01d7113da3634320bfc6eaabfe4fc896);
+            
+
+            marker_32453941a75d4e87a9328a9527e4660b.bindPopup(popup_300ed579343549f6a4d16a693f3b5fff);
+
+            
+        
+    
+
+            var marker_c0cd13133c8f45599c5373c213dc5d96 = L.marker(
+                [-1.7654498729289274,33.96375866044479],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_668432e58746411289fd52b6b275e54d = L.popup({maxWidth: '300'});
+
+            
+                var html_d098c39938e14d7aad4fc0e16cb1e2f8 = $('<div id="html_d098c39938e14d7aad4fc0e16cb1e2f8" style="width: 100.0%; height: 100.0%;">Butiama</div>')[0];
+                popup_668432e58746411289fd52b6b275e54d.setContent(html_d098c39938e14d7aad4fc0e16cb1e2f8);
+            
+
+            marker_c0cd13133c8f45599c5373c213dc5d96.bindPopup(popup_668432e58746411289fd52b6b275e54d);
+
+            
+        
+    
+
+            var marker_408b3c45f4aa4c478b072ffd51e7410c = L.marker(
+                [-2.649521320460776,33.030672805767765],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_dad24c94ac11476ea71955dac5cafdb8 = L.popup({maxWidth: '300'});
+
+            
+                var html_26ce9c9d74a04269bf0300d70e8ab163 = $('<div id="html_26ce9c9d74a04269bf0300d70e8ab163" style="width: 100.0%; height: 100.0%;">Fella</div>')[0];
+                popup_dad24c94ac11476ea71955dac5cafdb8.setContent(html_26ce9c9d74a04269bf0300d70e8ab163);
+            
+
+            marker_408b3c45f4aa4c478b072ffd51e7410c.bindPopup(popup_dad24c94ac11476ea71955dac5cafdb8);
+
+            
+        
+    
+
+            var marker_6ebbad9b61c842d8b73aee2c8c3a035a = L.marker(
+                [-2.8497590448651597,33.612131584978215],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_9ba9e23b44244a889c6485e5e052ac49 = L.popup({maxWidth: '300'});
+
+            
+                var html_7f96ad89a2384792a2e0171a2e98e835 = $('<div id="html_7f96ad89a2384792a2e0171a2e98e835" style="width: 100.0%; height: 100.0%;">Jija</div>')[0];
+                popup_9ba9e23b44244a889c6485e5e052ac49.setContent(html_7f96ad89a2384792a2e0171a2e98e835);
+            
+
+            marker_6ebbad9b61c842d8b73aee2c8c3a035a.bindPopup(popup_9ba9e23b44244a889c6485e5e052ac49);
+
+            
+        
+    
+
+            var marker_d1c1f24ab5cb4dbda3aed559b2418d6b = L.marker(
+                [-8.389239440316734,32.33305970260683],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_b9685903c78b4a2ba657a2f772f37e5a = L.popup({maxWidth: '300'});
+
+            
+                var html_12a93319ca614cb2b25c520a52d11a18 = $('<div id="html_12a93319ca614cb2b25c520a52d11a18" style="width: 100.0%; height: 100.0%;">Mkonko</div>')[0];
+                popup_b9685903c78b4a2ba657a2f772f37e5a.setContent(html_12a93319ca614cb2b25c520a52d11a18);
+            
+
+            marker_d1c1f24ab5cb4dbda3aed559b2418d6b.bindPopup(popup_b9685903c78b4a2ba657a2f772f37e5a);
+
+            
+        
+    
+
+            var marker_76d45905b45942edaae298e49f02f339 = L.marker(
+                [-2.6470539165070104,34.015483567905015],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_f697bb8a296146b0b5aadf7494032090 = L.popup({maxWidth: '300'});
+
+            
+                var html_0e9760e2b827444eb5aa50f295037f8b = $('<div id="html_0e9760e2b827444eb5aa50f295037f8b" style="width: 100.0%; height: 100.0%;">Bupandagila</div>')[0];
+                popup_f697bb8a296146b0b5aadf7494032090.setContent(html_0e9760e2b827444eb5aa50f295037f8b);
+            
+
+            marker_76d45905b45942edaae298e49f02f339.bindPopup(popup_f697bb8a296146b0b5aadf7494032090);
+
+            
+        
+    
+
+            var marker_3f0f7f092e1c497ca064f35d709ba398 = L.marker(
+                [-8.82573041145964,32.84617826100602],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_f326a0368a9e4d69bae8868994aa3753 = L.popup({maxWidth: '300'});
+
+            
+                var html_d9f7eebead2e4e18b5ae9f0867608f6b = $('<div id="html_d9f7eebead2e4e18b5ae9f0867608f6b" style="width: 100.0%; height: 100.0%;">Ipoloto</div>')[0];
+                popup_f326a0368a9e4d69bae8868994aa3753.setContent(html_d9f7eebead2e4e18b5ae9f0867608f6b);
+            
+
+            marker_3f0f7f092e1c497ca064f35d709ba398.bindPopup(popup_f326a0368a9e4d69bae8868994aa3753);
+
+            
+        
+    
+
+            var marker_45bfa2d4dad340aaa89d274c04cc9e9f = L.marker(
+                [-8.833685525725597,33.464832953847186],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_2fae30ec835446f89110608db7f4c5d7 = L.popup({maxWidth: '300'});
+
+            
+                var html_4eaad5045ff040a38d00ce0233885edb = $('<div id="html_4eaad5045ff040a38d00ce0233885edb" style="width: 100.0%; height: 100.0%;">Haporoto</div>')[0];
+                popup_2fae30ec835446f89110608db7f4c5d7.setContent(html_4eaad5045ff040a38d00ce0233885edb);
+            
+
+            marker_45bfa2d4dad340aaa89d274c04cc9e9f.bindPopup(popup_2fae30ec835446f89110608db7f4c5d7);
+
+            
+        
+    
+
+            var marker_14e7afbdcef54e098fe83870a76b60eb = L.marker(
+                [-3.3973602623254315,31.45104300385743],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_470701a0d7944a4e9bad237f9926960d = L.popup({maxWidth: '300'});
+
+            
+                var html_3cd1153cf541493982c86dbfadebb4f9 = $('<div id="html_3cd1153cf541493982c86dbfadebb4f9" style="width: 100.0%; height: 100.0%;">Namunge</div>')[0];
+                popup_470701a0d7944a4e9bad237f9926960d.setContent(html_3cd1153cf541493982c86dbfadebb4f9);
+            
+
+            marker_14e7afbdcef54e098fe83870a76b60eb.bindPopup(popup_470701a0d7944a4e9bad237f9926960d);
+
+            
+        
+    
+
+            var marker_b655f774517f4bf9b5dc9e8e8b5febc0 = L.marker(
+                [-8.807481408863868,34.13682894634473],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_1c6bf8d56a7b43ef84e5aa20a20b134b = L.popup({maxWidth: '300'});
+
+            
+                var html_d518844cd2f945eabde519849fe3fb77 = $('<div id="html_d518844cd2f945eabde519849fe3fb77" style="width: 100.0%; height: 100.0%;">Uturo</div>')[0];
+                popup_1c6bf8d56a7b43ef84e5aa20a20b134b.setContent(html_d518844cd2f945eabde519849fe3fb77);
+            
+
+            marker_b655f774517f4bf9b5dc9e8e8b5febc0.bindPopup(popup_1c6bf8d56a7b43ef84e5aa20a20b134b);
+
+            
+        
+    
+
+            var marker_5efb441320c54a8a8139526066bf70f0 = L.marker(
+                [-10.72137064193291,38.62225879468428],
+                {
+                    icon: new L.Icon.Default()
+                    }
+                )
+                .addTo(map_bda2c1d6ab3a4722a0d63f4346fb514c);
+            
+    
+            var popup_fe3fbd21a70f45ec8f3be259a3fd6054 = L.popup({maxWidth: '300'});
+
+            
+                var html_369970cc855241fd957712ff5d79aaa0 = $('<div id="html_369970cc855241fd957712ff5d79aaa0" style="width: 100.0%; height: 100.0%;">Namahinga</div>')[0];
+                popup_fe3fbd21a70f45ec8f3be259a3fd6054.setContent(html_369970cc855241fd957712ff5d79aaa0);
+            
+
+            marker_5efb441320c54a8a8139526066bf70f0.bindPopup(popup_fe3fbd21a70f45ec8f3be259a3fd6054);
+
+            
+        
+</script>
