@@ -72,26 +72,33 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
 	return clusters
 
 
-def cluster_pops(clusters, raster):
-	# But we still need to get the population data back, so we join it with the original raster data
-	# We take the sum of all population that lies underneath the polygon
-	pop_sums = zonal_stats(clusters, raster, stats='sum')
-	clusters['pop_sum'] = [x['sum'] for x in pop_sums]
+def cluster_pops(clusters, pop_raster, affine=None):
+    # But we still need to get the population data back, so we join it with the original raster data
+    # We take the sum of all population that lies underneath the polygon
 
-	return clusters
+    if type(pop_raster) == str:
+    	pop_sums = zonal_stats(clusters, pop_raster, stats='sum')
+
+    else:
+    	pop_sums = zonal_stats(clusters, pop_raster, affine=affine, stats='sum', nodata=0)
+
+    clusters['pop_sum'] = [x['sum'] for x in pop_sums]
+
+    return clusters
 
 
 def cluster_grid_distance(clusters, grid, shape, affine):
-	grid = grid.to_crs(crs=clusters.crs)
+    grid = grid.to_crs(crs=clusters.crs)
+    grid = grid.loc[grid['geometry'].length > 0]
 
-	grid_raster = rasterize(grid.geometry, out_shape=shape, fill=1,
-	                        default_value=0, all_touched=True, transform=affine)
-	dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
+    grid_raster = rasterize(grid.geometry, out_shape=shape, fill=1,
+                            default_value=0, all_touched=True, transform=affine)
+    dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
 
-	dists = zonal_stats(vectors=cluster, raster=dist_raster, affine=affine, stats='min', nodata=1000)
-	clusters['grid_dist'] = [x['min'] for x in dists]
+    dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1000)
+    clusters['grid_dist'] = [x['min'] for x in dists]
 
-	return clusters
+    return clusters
 
 
 if __name__ == '__main__':
@@ -102,26 +109,33 @@ if __name__ == '__main__':
 	grid_in = folder_input / 'uganda_grid.gpkg'
 	clusters_out = folder_input / 'clusters.gpkg'
 
+	print('Reading files...', end='', flush=True)
 	pop = rasterio.open(str(ghs_in))
 	adm = gpd.read_file(str(clip_boundary), layer=clip_boundary_layer, driver='GPKG')
 	grid = gpd.read_file(str(grid_in))
-	print('read in files')
+	print('\t\tDone')
 
+	print('Clipping raster...', end='', flush=True)
 	pop_clipped, pop_affine = clip_raster(pop, adm)
-	print('clipped')
+	print('\t\tDone')
 
+	print('Creating clusters...', end='', flush=True)
 	pop_poly = create_clusters(pop_clipped, pop_affine, pop.crs)
-	print('created clusters')
+	print('\t\tDone')
 
+	print('Filtering and merging...', end='', flush=True)
 	pop_poly = filter_merge_clusters(pop_poly)
-	print('filtered and merged')
+	print('\tDone')
 
-	pop_poly = cluster_pops(pop_poly, pop)
-	print('got pops')
+	print('Getting population...', end='', flush=True)
+	pop_poly = cluster_pops(pop_poly, str(ghs_in))
+	print('\t\tDone')
 
+	print('Getting grid dists...', end='', flush=True)
 	pop_poly = cluster_grid_distance(pop_poly, grid, pop_clipped[0].shape, pop_affine)
-	print('got grid dists')
+	print('\t\tDone')
 
+	print(f'Saving to {str(clusters_out)}...', end='', flush=True)
 	pop_poly = pop_poly.to_crs(epsg=4326)
 	pop_poly.to_file(str(clusters_out), driver='GPKG')
-	print('saved clusters to', str(clusters_out))
+	print('\t\tDone')
