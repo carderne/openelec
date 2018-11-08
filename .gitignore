@@ -3,3 +3,4 @@
 *.tif
 *.gpkg
 in_files/
+.ipynb_checkpoints/
