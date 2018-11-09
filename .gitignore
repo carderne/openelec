@@ -2,7 +2,6 @@
 *.qgz
 *.tif
 *.gpkg
-test_data/
 Scratch.ipynb
 
 # Byte-compiled / optimized / DLL files
