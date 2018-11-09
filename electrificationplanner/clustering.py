@@ -154,10 +154,14 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
 	crs = clusters.crs
 	clusters = clusters.explode()
 	clusters = clusters.reset_index()
-	clusters['geometry'] = clusters[0]
-	clusters = clusters.drop(columns=['level_0', 'level_1', 0]) # shapefile doesn't like integer column name
-	clusters = gpd.GeoDataFrame(clusters)
-	clusters.crs = crs
+
+	# no longer needed in GeoPandas >= 0.4.0
+	# clusters['geometry'] = clusters[0]
+	# clusters = gpd.GeoDataFrame(clusters)
+	# clusters.crs = crs
+
+	clusters = clusters.drop(columns=['same', 'level_1', 'raster_val'])  # raster_val is no longer meaningful
+	
 
 	# And then add the polygon's area back to its attributes
 	clusters["area_m2"] = clusters['geometry'].area
