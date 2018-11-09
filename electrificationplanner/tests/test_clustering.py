@@ -41,3 +41,4 @@ def test_clusters():
 
 	clustering.save_clusters(clusters, CLUSTERS_FILE)
 	assert Path(CLUSTERS_FILE).is_file()
+	
