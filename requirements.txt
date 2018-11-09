@@ -1,0 +1,8 @@
+numpy>=1.14.2
+pandas>=0.22.0
+geopandas>=0.3.0
+shapely>=1.6.4
+astroML>=0.3
+scipy>=1.0.0
+rasterio>=1.07
+rasterstats>=0.13.0
