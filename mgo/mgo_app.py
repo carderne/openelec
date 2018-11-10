@@ -1,8 +1,10 @@
 import os
-from flask import Flask, session, render_template, request
+from flask import Flask, session, render_template, request, jsonify
 from flask.sessions import SessionInterface
 from beaker.middleware import SessionMiddleware
 from mgo import MgoModel
+
+import mgo_utils
 
 # options for the beaker session
 session_opts = {
@@ -25,6 +27,32 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app._static_folder = 'static'
 app.wsgi_app = SessionMiddleware(app.wsgi_app, session_opts)
 app.session_interface = BeakerSessionInterface()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/_get_village_list')
+def get_village_list():
+    # get village names and centroids
+
+    villages = mgo_utils.village_centroids('uploads')
+
+    return jsonify(villages=villages)
+
+
+@app.route('/_get_village_overview')
+def get_village_overview():
+    name = request.args.get('name', 0, type=str)
+
+    village_message = f'It was {name}'
+    # get village centroid and zoom level
+
+    return jsonify(centroid=village_message)
+
+
+
+"""
 
 @app.route('/static/<path:filename>', methods=['GET', 'POST'])
 def download(path, filename):
@@ -120,6 +148,8 @@ def index():
     return render_template('index.html', map_file='static/main_map.html',
                             village_msg='Choose a village', villages=session['villages'],
                             show_gen_instruction=False, show_params=False, show_results=False)
+"""
+
 
 if __name__ == '__main__':
     app.run(debug=True)
