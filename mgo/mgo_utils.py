@@ -10,7 +10,7 @@ def village_centroids(villages_path):
 	villages = defaultdict(tuple)
 
 	for file in os.listdir(villages_path):
-		if file.endswith('.shp'):
+		if file.endswith('.gpkg'):
 
 			name = os.path.splitext(file)[0]
 			#villages.append(name)

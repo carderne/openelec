@@ -29,7 +29,7 @@ class MgoModel:
 
     def set_village(self, village, uploads_dir):
         self.village = village
-        self.input_file = '{}/{}.shp'.format(uploads_dir, self.village)
+        self.input_file = '{}/{}.gpkg'.format(uploads_dir, self.village)
         self.buildings = gpd.read_file(self.input_file)
     
     def get_village(self):
@@ -53,7 +53,7 @@ class MgoModel:
         village_map.save(output_file_html)
         return output_file_html
 
-    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length, dry_run, target_coverage=-1):
+    def run_model(self, minimum_area_m2, demand_per_person_kwh_month, tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate, max_tot_length, target_coverage=-1):
         minimum_area_m2 = float(minimum_area_m2)
         demand_per_person_kwh_month = float(demand_per_person_kwh_month)
         tariff = float(tariff)
@@ -352,11 +352,6 @@ class MgoModel:
                    'income': int(income),
                    'npv': int(npv)}
 
-        # for modelling, we don't want to waste time making shapefiles and html maps
-        if dry_run:
-            return '', results, self.village, ''
-
-
         # ### And then do a spatial join to get the results back into a polygon shapefile
         # join the resultant points with the orignal buildings_projected
         # create geometries from X and Y points and create gdf
@@ -389,87 +384,7 @@ class MgoModel:
         buildings_wgs84 = buildings_wgs84.to_crs(epsg=4326)
         buildings_wgs84 = buildings_wgs84.loc[buildings_wgs84['connected'] == 1]
 
-        nodes_wgs84 = nodes_gdf.copy()
-        nodes_wgs84 = nodes_wgs84.to_crs(epsg=4326)
-        nodes_wgs84 = nodes_wgs84.loc[nodes_wgs84['connected'] == 1]
+        network = [list(line.coords) for line in network_wgs84['geometry']]
+        buildings = [{'coords': [list(r.geometry.geoms[0].exterior.coords)], 'area': r.area_m2} for i, r in buildings_wgs84.iterrows()]
 
-        village_map = folium.Map([y_mean, x_mean], zoom_start=15, control_scale=True)
-        icon = folium.Icon(icon='bolt', color='green', prefix='fa')
-        folium.Marker([self.gen_lat, self.gen_long], icon=icon, popup='Generator location').add_to(village_map)
-
-        if len(network_wgs84.index) > 0 and len(buildings_wgs84.index) > 0:
-            folium.GeoJson(network_wgs84, name='Network').add_to(village_map)
-
-            def highlight_function(feature):
-                return {'fillColor': '#b2e2e2', 'fillOpacity': 0.5, 'color': 'black', 'weight': 3}
-
-            demand_max = buildings_wgs84['area'].max() * num_people_per_m2 * demand_per_person_kwh_month
-            styles = []
-            for index, row in buildings_wgs84.iterrows():
-                demand = row['area'] * num_people_per_m2 * demand_per_person_kwh_month
-                if demand > demand_max * 0.8:
-                    fill_color = '#006d2c'
-                elif demand > demand_max * 0.6:
-                    fill_color = '#2ca25f'
-                elif demand > demand_max * 0.4:
-                    fill_color = '#66c2a4'
-                elif demand > demand_max * 0.2:
-                    fill_color = '#b2e2e2'
-                else:
-                    fill_color = '#edf8fb'
-                styles.append({'fillColor': fill_color, 'weight': 1, 'color': 'black', 'fillOpacity': 1})
-                
-            buildings_wgs84['style'] = styles
-            folium.GeoJson(buildings_wgs84, name='Household demand', highlight_function=highlight_function).add_to(village_map)
-
-            colormap1 = cm.LinearColormap(colors=['green','blue'], vmin=0, vmax=demand_max)
-            colormap1.caption = 'Household demand (kWh/month)'
-            colormap1.add_to(village_map)
-
-            max_dist = buildings_wgs84['tot_dist'].max()
-            styles = []
-            for index, row in buildings_wgs84.iterrows():
-                if row['tot_dist'] > max_dist * 0.8:
-                    fill_color = '#b30000'
-                elif row['tot_dist'] > max_dist * 0.6:
-                    fill_color = '#e34a33'
-                elif row['tot_dist'] > max_dist * 0.4:
-                    fill_color = '#fc8d59'
-                elif row['tot_dist'] > max_dist * 0.2:
-                    fill_color = '#fdcc8a'
-                else:
-                    fill_color = '#fef0d9'
-                styles.append({'fillColor': fill_color, 'weight': 1, 'color': 'black', 'fillOpacity': 1})
-                
-            buildings_wgs84['style'] = styles
-            folium.GeoJson(buildings_wgs84, name='Household distance', highlight_function=highlight_function).add_to(village_map)
-
-            colormap2 = cm.LinearColormap(colors=['orange','red'], vmin=0, vmax=max_dist)
-            colormap2.caption = 'Household distance from generator (m)'
-            colormap2.add_to(village_map)
-
-            folium.LayerControl(collapsed=False, position='topleft').add_to(village_map)
-
-        # ### And then save the shapefiles, the HTML map and zip it all together too
-        file_tag = '{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}_{}'.format(self.village, self.gen_lat, self.gen_long, minimum_area_m2, demand_per_person_kwh_month,
-                                                          tariff, gen_cost_per_kw, cost_wire, cost_connection, opex_ratio, years, discount_rate)
-        output_file_buildings = '{}/{}_buildings.shp'.format(self.session_dir, file_tag)
-        output_file_network = '{}/{}_network.shp'.format(self.session_dir, file_tag)
-        output_file_pv = '{}/{}_gen.shp'.format(self.session_dir, file_tag)
-        output_file_zip = '{}/{}.zip'.format(self.session_dir, file_tag)
-        output_file_html = '{}/{}.html'.format(self.session_dir, file_tag)
-        village_map.save(output_file_html)        
-
-        if len(network_wgs84.index) > 0 and len(buildings_wgs84.index) > 0:
-            buildings_wgs84.to_file(output_file_buildings)
-            network_wgs84.to_file(output_file_network)
-            pv_point.to_file(output_file_pv)
-
-        with ZipFile(output_file_zip, 'w') as myzip:
-            villages = []
-            for file in os.listdir(self.session_dir):
-                if file_tag in file and '.zip' not in file:
-                    myzip.write(os.path.join(self.session_dir, file), arcname=os.path.basename(file))
-
-        return output_file_html, results, self.village, output_file_zip
-
+        return results, network, buildings
