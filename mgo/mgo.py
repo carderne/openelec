@@ -4,7 +4,6 @@ Tool designed to take a small village and estimate the optimum connections, base
 """
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from astroML.clustering import HierarchicalClustering, get_graph_segments
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from math import sqrt
