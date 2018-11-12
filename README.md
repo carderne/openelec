@@ -18,7 +18,7 @@ Have a look at the example Jupyter Notebook for a quick overview of the main API
 
 **Web App usage**
 
-[![Web App demo](https://thumbs.gfycat.com/CarefreeRemarkableAardwolf-size_restricted.gif)](https://gfycat.com/CarefreeRemarkableAardwolf)
+[![Web App demo](https://thumbs.gfycat.com/FirstWiltedGreyhounddog-size_restricted.gif)](https://gfycat.com/CarefreeRemarkableAardwolf)
 
 Installation
 --------
