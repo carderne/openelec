@@ -42,6 +42,10 @@ Downloads or clone the repository:
 
 ``git clone https://github.com/carderne/minigrid-optimiser.git``
 
+Then ``cd`` into the directory, and install the required packages into a virtual environment:
+
+```pip install -r requirements.txt```
+
 Then run ``jupyter notebook`` and open ``minigrid-optimiser.ipynb`` to go over the main model usage and API.
 
 **Web App**
