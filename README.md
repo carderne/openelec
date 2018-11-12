@@ -58,7 +58,7 @@ To use the web app, run the following from the main directory:
 
 ```
 cd mgo
-python3 mgo_app.py
+python mgo_app.py
 ```
 
 and navigate to http://127.0.0.1:5000/ in a browser to access the web app.
