@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from astroML.clustering import HierarchicalClustering, get_graph_segments
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from math import sqrt
-import folium
 import geopandas as gpd
 import os.path
 from collections import defaultdict
