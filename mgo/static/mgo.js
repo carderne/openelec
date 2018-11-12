@@ -1,3 +1,10 @@
+/**
+ * Front-end code for minigrid-optimiser.
+ * Creates a Leaflet map and provides user input to model.
+ * Interacts with mgo_app.py Flask API using Ajax calls.
+ */
+
+// Main Leaflet map container
 var map = L.map("main-map").setView([-5.94, 34.5], 7);
 
 // This is the Carto Positron basemap
@@ -9,8 +16,20 @@ var basemap = L.tileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/li
 basemap.addTo(map);
 map.on('click', addGenLocation);
 
+// Some variables needed at global level
 var villages;
+var genLat;
+var genLng;
 
+var hasGenLocation = false;
+var readyForGen = false;
+
+var resultsTable;
+var networkLayer;
+var buildingsLayer;
+var maxArea;
+
+// On DOM load, get villages and centroids to add to map
 $(function() {
     $.ajax({
         url: "/_get_village_list",
@@ -32,10 +51,11 @@ $(function() {
     });
 });
 
-
+/**
+ * Add the given list of points to the map.
+ */
 function addPoints(data) {
     pointGroupLayer = L.layerGroup().addTo(map);
-
     for(var row in data) {
         var marker = L.marker([data[row].lat, data[row].lng]).addTo(pointGroupLayer);
         marker.bindPopup(row);
@@ -43,6 +63,10 @@ function addPoints(data) {
 }
 
 
+/**
+ * Called when a village is selected.
+ * Move map to selected village and prompt to select generator location.
+ */
 function showVillage() {
     name = $('select[name="village"]').val()
 
@@ -54,11 +78,12 @@ function showVillage() {
     readyForGen = true;
 }
 
-var genLat;
-var genLng;
 
-var hasGenLocation = false;
-var readyForGen = false;
+/**
+ * Functionality to add generator to selected location.
+ * Once a generator is chosen, the funcationality is turned off
+ * and inputs are provided for user to enter economic parameters.
+ */
 function addGenLocation(e) {
     if (readyForGen && !hasGenLocation) {
         hasGenLocation = true;
@@ -96,10 +121,10 @@ function addGenLocation(e) {
     }
 }
 
-var resultsTable;
-var networkLayer;
-var buildingsLayer;
 
+/**
+ * Run the model with the user-provided input parameters.
+ */
 function runModel() {
     $.ajax({
         url: "/_run_model",
@@ -113,61 +138,70 @@ function runModel() {
             gen_cost: $('input[name="gen-cost"]').val(),
             cost_wire: $('input[name="cost-wire"]').val(),
             cost_connection: $('input[name="cost-connection"]').val(),
-            opex_ratio: $('input[name="opex-ratio"]').val(),
+            opex_ratio: $('input[name="opex-ratio"]').val() / 100,
             years: $('input[name="years"]').val(),
-            discount_rate: $('input[name="discount-rate"]').val(),
+            discount_rate: $('input[name="discount-rate"]').val() / 100,
             max_length: $('input[name="max-length"]').val()
         },
-
-        success: function(data) {
-            var network = data.network;
-            var buildings = data.buildings;
-            var results = data.results;
-
-            document.getElementById("param-head").innerHTML = "Check your results";
-
-            if (resultsTable) {
-                resultsTable.innerHTML = ""
-            }
-
-            resultsTable = document.getElementById("results");
-            resultsTable.insertRow(-1).innerHTML = "Houses connected: " + results.connected;
-            resultsTable.insertRow(-1).innerHTML = "Generator size: " + results.gen_size + " kW";
-            resultsTable.insertRow(-1).innerHTML = "Total wire length: " + results.length + " m";
-            resultsTable.insertRow(-1).innerHTML = "Capex: $" + results.capex;
-            resultsTable.insertRow(-1).innerHTML = "Annual opex: $" + results.opex;
-            resultsTable.insertRow(-1).innerHTML = "Annual income: $" + results.income;
-            resultsTable.insertRow(-1).innerHTML = "NPV: $" + results.npv;
-
-            if (networkLayer || buildingsLayer) {
-                networkLayer.remove();
-                buildingsLayer.remove();
-            }
-            
-            networkLayer = L.geoJSON(network).addTo(map);
-
-            maxArea = getMax(buildings, "area")
-            buildingsLayer = L.geoJSON(buildings, {
-                style: function(feature) {
-                    return buildingStyle(feature);
-                },
-                onEachFeature: function (feature, layer) {
-                    layer.on({
-                        mouseout: function(e) {
-                            e.target.setStyle(buildingStyle(e.target.feature));
-                        },
-                        mouseover: function(e) {
-                            e.target.setStyle(buildingHoverStyle);
-                        },
-                    });
-                }
-            }).addTo(map);
-        }
+        success: updateWithResults
     });
 }
 
-var maxArea;
-buildingHoverStyle = {'fillColor': '#b2e2e2', 'fillOpacity': 0.5, 'color': 'black', 'weight': 3}
+
+/**
+ * After model run, display summary results and
+ * update map with network and connected buildings.
+ */
+function updateWithResults(data) {
+    var network = data.network;
+    var buildings = data.buildings;
+    var results = data.results;
+
+    document.getElementById("param-head").innerHTML = "Check your results";
+
+    if (resultsTable) {
+        resultsTable.innerHTML = ""
+    }
+
+    resultsTable = document.getElementById("results");
+    resultsTable.insertRow(-1).innerHTML = "Houses connected: " + results.connected;
+    resultsTable.insertRow(-1).innerHTML = "Generator size: " + results.gen_size + " kW";
+    resultsTable.insertRow(-1).innerHTML = "Total wire length: " + results.length + " m";
+    resultsTable.insertRow(-1).innerHTML = "Capex: $" + results.capex;
+    resultsTable.insertRow(-1).innerHTML = "Annual opex: $" + results.opex;
+    resultsTable.insertRow(-1).innerHTML = "Annual income: $" + results.income;
+    resultsTable.insertRow(-1).innerHTML = "NPV: $" + results.npv;
+
+    if (networkLayer || buildingsLayer) {
+        networkLayer.remove();
+        buildingsLayer.remove();
+    }
+    
+    networkLayer = L.geoJSON(network).addTo(map);
+
+    var buildingHoverStyle = {'fillColor': '#b2e2e2', 'fillOpacity': 0.5, 'color': 'black', 'weight': 3};
+    maxArea = getMax(buildings, "area")
+    buildingsLayer = L.geoJSON(buildings, {
+        style: function(feature) {
+            return buildingStyle(feature);
+        },
+        onEachFeature: function (feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    e.target.setStyle(buildingStyle(e.target.feature));
+                },
+                mouseover: function(e) {
+                    e.target.setStyle(buildingHoverStyle);
+                },
+            });
+        }
+    }).addTo(map);
+}
+
+
+/**
+ * Style buildings according to their area.
+ */
 function buildingStyle(feature) {
     area = feature.properties.area
     if (area > maxArea*0.8) {fillColor = '#006d2c'}
@@ -178,6 +212,10 @@ function buildingStyle(feature) {
     return {'fillColor': fillColor, 'weight': 1, 'color': 'black', 'fillOpacity': 1}
 }
 
+
+/**
+ * Get the maximum of a specified property within a GeoJSON
+ */
 function getMax(data, property) {
     var max = 0;
     for (var row in data.features) {

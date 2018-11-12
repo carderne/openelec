@@ -1,5 +1,7 @@
-# # Mini Grid Optimiser
-# Tool designed to take a small village and estimate the optimum connections, based on a PV installation location and economic data.
+"""
+minigrid-optimiser
+Tool designed to take a small village and estimate the optimum connections, based on a PV installation location and economic data.
+"""
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,15 +16,29 @@ from collections import defaultdict
 # This is the Africa Albers Equal Area Conic EPSG: 102022
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
-def village_centroids(villages_path):
+def village_centroids(file_dir):
+    """
+    Get list of available villages together with their centroids.
+
+    Parameters
+    ----------
+    file_dir: string
+        The path containing the GeoJSON files to be considered.
+
+    Returns
+    -------
+    villages: dict
+        dict key on village names, each item containng a dict
+        with the centroid {'lat': latitude, 'lng': longitude}.
+    """
     villages = defaultdict(tuple)
 
-    for file in os.listdir(villages_path):
+    for file in os.listdir(file_dir):
         if file.endswith('.geojson'):
 
             name = os.path.splitext(file)[0]
 
-            gdf = gpd.read_file(os.path.join(villages_path, file))
+            gdf = gpd.read_file(os.path.join(file_dir, file))
             lng = gdf.geometry.centroid.x.mean()
             lat = gdf.geometry.centroid.y.mean()
 
@@ -32,15 +48,35 @@ def village_centroids(villages_path):
 
 
 def load_buildings(village, file_dir, min_area):
+    """
+    Load the relevant GeoJSON, add an area column and
+    filter to exclude buildings too small.
+
+    Parameters
+    ----------
+    village: string
+        The village's name.
+    file_dir: string
+        The directory containing the GeoJSON file.
+    min_area: int
+        Exclude buildings below this size in m2.
+
+    Returns
+    -------
+    buildings: geopandas.GeoDataFrame
+        All of the buildings with attribues and geometries.
+    """
     min_area = float(min_area)
     input_file = '{}/{}.geojson'.format(file_dir, village)
     buildings = gpd.read_file(input_file)
     
+    # project to equal-area before calculating area
     buildings_projected = buildings.to_crs(EPSG102022)
 
     buildings_projected["area"] = buildings_projected['geometry'].area
     buildings_projected = buildings_projected.loc[buildings_projected['area'] > min_area]
 
+    # project back to WGS84
     buildings = buildings_projected.to_crs(epsg=4326)
     buildings = buildings.reset_index().drop(columns=['index'])
 
@@ -48,12 +84,52 @@ def load_buildings(village, file_dir, min_area):
 
 
 def create_network(buildings, gen_lat, gen_lng, max_length):
+    """
+    Create a network of lines and nodes from the buildings file,
+    using a Minimum spanning tree to generate the connecting
+    lines between the buildings.
+
+    Parameters
+    ----------
+    buildings: geopandas.GeoDataFrame
+        All of the buildings with attribues and geometries.
+    gen_lat: float
+        Latitude of PV generator.
+    gen_lng: float
+        Longitude of PV generator.
+    max_length: int
+        Maximum total length of wire to use.
+
+    Returns
+    -------
+    network: list of lists
+        Each list within the list contains a single network arc, with the following attributes:
+        0   index
+        1   xs
+        2   ys
+        3   xe
+        4   ye
+        5   node index first point
+        6   node index last point
+        7   whether this arc is directed (0 or 1)
+        8   arc length
+        9   whether enabled (default to 1)
+    nodes: list of list
+        Each list within contains a single building node, with the PV point at index 0.
+        Each elementhas the following attributes:
+        0   index
+        1   x
+        2   y
+        3   area_m2
+        4   marginal distance
+        5   total distance
+        6   connected (default to 0)
+        7.. connected arc indices
+    """
     gen_lat = float(gen_lat)
     gen_lng = float(gen_lng)
     max_tot_length = float(max_length)
     
-    # This is the Africa Albers Equal Area Conic EPSG: 102022
-    epsg102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
     buildings_projected = buildings.to_crs(EPSG102022)
 
     buildings_points = buildings_projected.copy()
@@ -61,7 +137,8 @@ def create_network(buildings, gen_lat, gen_lng, max_length):
     buildings_points['X'] = buildings_points.geometry.x
     buildings_points['Y'] = buildings_points.geometry.y
 
-    # ### We then take all the houses and calculate the optimum network that connects them all to the PV point, before we start analysing further and deciding on the optimum network.
+    # We then take all the houses and calculate the optimum network that connects them all to the PV point,
+    # before we start analysing further and deciding on the optimum network.
     df = pd.DataFrame(buildings_points)
 
     pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
@@ -80,31 +157,9 @@ def create_network(buildings, gen_lat, gen_lng, max_length):
         # in this case there will be no network
         # need to handle somehow?
         pass
-        
-    # Structure for network:
-    # 0   index
-    # 1   xs
-    # 2   ys
-    # 3   xe
-    # 4   ye
-    # 5   node index first point
-    # 6   node index last point
-    # 7   whether this arc is directed (0 or 1)
-    # 8   arc length
-    # 9   whether enabled (default to 1)
 
-    # Structure for nodes:
-    # The PV point is indexed at point 0
-    # 0   index
-    # 1   x
-    # 2   y
-    # 3   area_m2
-    # 4   marginal distance
-    # 5   total distance
-    # 6   connected (default to 0)
-    # 7.. connected arc indices
-
-    # ### This point and line data is then copied into two arrays, called *nodes* and *network*, containing the houses and lines, respectively.
+    # This point and line data is then copied into two arrays, called *nodes* and *network*,
+    # containing the houses and lines, respectively.
     # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
     # astype(int) doesn't round - it just chops off the decimals
     nodes = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
@@ -124,7 +179,8 @@ def create_network(buildings, gen_lat, gen_lng, max_length):
         arc[8] = sqrt((arc[3] - arc[1])**2 + (arc[4] - arc[2])**2)
 
 
-    # ### Then we need to calculate the directionality of the network, starting from the PV location and reaching outwards to the furthest branches.
+    # Then we need to calculate the directionality of the network, starting from the PV location and
+    # reaching outwards to the furthest branches.
     # We use this to calculate, for each node, it's marginal and total distance from the PV location.
     # At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
     # We also tell each node which arcs (at least one, up to three or four?) it is connected to.
@@ -186,18 +242,46 @@ def create_network(buildings, gen_lat, gen_lng, max_length):
 
 def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
               opex_ratio, years, discount_rate, target_coverage=-1):
+    """
+    Run the model with the given economic parameters and return the processed network and nodes.
 
+    Parameters
+    ----------
+    network: list of lists
+        Containing te arc representations.
+    nodes: list of lists
+        Containing the building node representations.
+    demand: int
+        Demand in kWh/person/month.
+    tariff: float
+        Tariff to be charged in USD/kWh.
+    gen_cost: int
+        Generator cost in USD/kW.
+    cost_wire: int
+        Wire cost in USD/m.
+    cost_connection: int
+        Cost per household connection in USD.
+    opex_ratio: float
+        Annual OPEX as a percentage of CAPEX (range 0 -1).
+    years: int
+        Project duration in years.
+    discount_rate: float
+        Discount rate to be used for NPV calculation (range 0-1).
+    target_coverage: float, optional
+        If provided, model will aim to achieve this level of population coverage,
+        rather than optimising on NPV.
+    """
     
     demand_per_person_kwh_month = float(demand)
     tariff = float(tariff)
     gen_cost_per_kw = float(gen_cost)
     cost_wire = float(cost_wire)
     cost_connection = float(cost_connection)
-    opex_ratio = float(opex_ratio) / 100  # because user specifies as %
+    opex_ratio = float(opex_ratio)
     years = int(years)
-    discount_rate = float(discount_rate) / 100  # because user specifies as %
+    discount_rate = float(discount_rate)
 
-    # ### Here we prepare the algorithm to optimise our network configuration, by pruning network extensions that aren't profitable.
+    # Here we prepare the algorithm to optimise our network configuration, by pruning network extensions that aren't profitable.
     # Here the economic data should be entered.
     # optimisation strategy #2
     # cut arcs one by one, see which cut is the *most* profitable, and then take that network and repeat the process
@@ -227,8 +311,9 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
         return cost, income_per_month, nodes, network
 
 
-    # ### Then we start with the complete network, and try 'deleting' each arc.
-    # Whichever deletion is the most profitable, we make it permanent and repeat the process with the new configuration.
+    # Then we start with the complete network, and try 'deleting' each arc.
+    # Whichever deletion is the most profitable, we make it permanent and
+    # repeat the process with the new configuration.
     # This continues until there are no more increases in profitability to be had.
 
     if target_coverage == -1:
@@ -305,7 +390,8 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
             if actual_coverage <= target_coverage:
                 break
                                 
-    # ### Then we disconnect all the houses that are no longer served by active arcs, and prune any stranded arcs that remained on un-connected paths.
+    # Then we disconnect all the houses that are no longer served by active arcs,
+    # and prune any stranded arcs that remained on un-connected paths.
     # now we need to tell the houses that aren't connected, that they aren't connected (or vice-versa)
     # recurse from the starting point and ID connected houses as connected?
     def connect_houses(nodes, network, index):
@@ -332,7 +418,7 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 arc[9] = 0
 
 
-    # ### And calculate some quick summary numbers for the village
+    # And calculate some quick summary numbers for the village
     # create a quick report
     # number connected, length of line, total profit over ten years
     count_nodes = 0
@@ -371,6 +457,25 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
 
 
 def network_to_spatial(buildings, network, nodes):
+    """
+    Create GeoDataFrames with geometries from the network.
+
+    Parameters
+    ----------
+    buildings: geopandas.GeoDataFrame
+        Original buildings with WGS84 geometries. Used to join nodes into.
+    network: list of lists
+        Containing te arc representations.
+    nodes: list of lists
+        Containing the building node representations.
+
+    Returns
+    -------
+    network_gdf: geopandas.GeoDataFrame
+        Resultant optimised network.
+    buildings_gdf: geopandas.GeoDataFrame
+        Resultant buildings filtered to only include those connected.
+    """
     # ### And then do a spatial join to get the results back into a polygon shapefile
     # join the resultant points with the orignal buildings_projected
     # create geometries from X and Y points and create gdf
@@ -379,21 +484,36 @@ def network_to_spatial(buildings, network, nodes):
                                       'connected'], data=nodes_for_df)
     nodes_df.index = nodes_df.index - 1  # to get rid of pv point
     nodes_df = nodes_df.drop(columns=['area'])  # otherwise left and right in join have area in them
-    buildings_joined = buildings.merge(nodes_df, left_index=True, right_index=True)
-    buildings_joined = buildings_joined.loc[buildings_joined['connected'] == 1]
+    buildings_gdf = buildings.merge(nodes_df, left_index=True, right_index=True)
+    buildings_gdf = buildings_gdf.loc[buildings_gdf['connected'] == 1]
 
     # do the same for the network array
     network_df = pd.DataFrame(columns=['idx', 'xs', 'ys', 'xe', 'ye', 'node_start', 'node_end',
                                        'directed', 'length', 'enabled'], data=network)
     network_geometry = [LineString([(arc[1], arc[2]), (arc[3], arc[4])]) for arc in network]
     network_gdf = gpd.GeoDataFrame(network_df, crs=EPSG102022, geometry=network_geometry)
-    network_wgs84 = network_gdf.to_crs(epsg=4326)
-    network_wgs84 = network_wgs84.loc[network_wgs84['enabled'] == 1]
+    network_gdf = network_gdf.to_crs(epsg=4326)
+    network_gdf = network_gdf.loc[network_gdf['enabled'] == 1]
 
-    return network_wgs84, buildings_joined
+    return network_gdf, buildings_gdf
 
 
 def gdf_to_geojson(gdf, property_cols=[]):
+    """
+    Convert GeoDataFrame to GeoJSON that can be supplied to JavaScript.
+
+    Parameters
+    ----------
+    gdf: geopandas.GeoDataFrame
+        GeoDataFrame to be converted.
+    property_cols: list, optional
+        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
+
+    Returns
+    -------
+    geoJson: dict
+        A GeoJSON representation that can be parsed by standard JSON readers.
+    """
     geoJson = {'type': 'FeatureCollection',
            'features': []}    
 
@@ -408,6 +528,23 @@ def gdf_to_geojson(gdf, property_cols=[]):
 
 
 def get_geometry(geometry):
+    """
+    Convert a GeoDataFrame geometry value into a GeoJSON-friendly representation.
+
+    Parameters
+    ----------
+    geometry: shapely.LineString, shapely.Polygon or shapely.MultiPolygon
+        A single geometry entry from a GeoDataFrame.
+
+    Returns
+    -------
+    geom_dict: dict
+        A GeoJSON geometry element of the form
+        'geometry': {
+            'type': type,
+            'coordinates': coords
+        } 
+    """
     geom_dict = {}
     
     if isinstance(geometry, LineString):
@@ -430,6 +567,26 @@ def get_geometry(geometry):
 
 
 def get_properties(row, property_cols):
+    """
+    Get the selected columns from the pandas row as a GeoJSON-friendly dict.
+
+    Parameters
+    ----------
+    row: pandas.Series
+        A single row from a GeoDataFrame.
+    property_cols: list
+        List of column names to be added.
+
+    Returns
+    -------
+    properties: dict
+        A GeoJSON element of the form
+        properties: {
+            'column1': property1,
+            'column2': property2,
+            ...
+        }
+    """
     properties = {}
     
     for col in property_cols:

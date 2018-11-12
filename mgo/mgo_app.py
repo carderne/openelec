@@ -1,3 +1,7 @@
+"""
+Flask app with API points
+"""
+
 from flask import Flask, render_template, request, jsonify
 import mgo
 
@@ -22,15 +26,18 @@ def get_village_list():
 
 @app.route('/_run_model')
 def run_model():
+    # load the relevant buildings file
     buildings = mgo.load_buildings(village=request.args.get('name', 0, type=str),
                                    file_dir=uploads,
                                    min_area=request.args.get('min_area', 0, type=int))
 
+    # create the network and nodes for this village
     network, nodes = mgo.create_network(buildings,
                                         gen_lat=request.args.get('gen_lat', 0, type=float),
                                         gen_lng=request.args.get('gen_lng', 0, type=float),
                                         max_length=request.args.get('max_length', 0, type=int))
 
+    # run model and get summary results
     results, network, nodes = mgo.run_model(network, nodes,
                                             demand=request.args.get('demand', 0, type=int),
                                             tariff=request.args.get('tariff', 0, type=float),
@@ -41,8 +48,10 @@ def run_model():
                                             years=request.args.get('years', 0, type=int),
                                             discount_rate=request.args.get('discount_rate', 0, type=int))
 
+    # convert results to GeoDataFrames
     network, buildings = mgo.network_to_spatial(buildings, network, nodes)
 
+    # and then convert these to GeoJSON
     network = mgo.gdf_to_geojson(network)
     buildings = mgo.gdf_to_geojson(buildings, property_cols=['area'])
 
