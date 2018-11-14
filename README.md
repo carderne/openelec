@@ -32,9 +32,8 @@ minigrid-optimiser requires Python >= 3.5 with the following packages installed:
 - ``pandas`` >= 0.22.0
 - ``geopandas`` >= 0.4.0 (0.4.0 had API breaking changes so this version is needed)
 - ``shapely`` >= 1.6.4
-- ``astroML`` >= 0.3
 - ``scipy`` >= 1.0.0
-- ``scikit-learn`` == 0.17.1 (later versions are not compatible with astroML)
+- ``scikit-learn`` >= 0.17.1
 
 **Install**
 
