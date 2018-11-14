@@ -4,6 +4,12 @@
  * Interacts with mgo_app.py Flask API using Ajax calls.
  */
 
+// TODO get data directly from OSM
+// TODO Reimplement sidebar with leaflet-sidebar
+// TODO Click on vilage marker takes user to village view (ditch drop down?)
+// TODO 'Choose generator site' message overlay on map
+// TODO add colorbar?
+
 // Main Leaflet map container
 var map = L.map("main-map").setView([-5.94, 34.5], 7);
 
