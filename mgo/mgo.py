@@ -4,12 +4,14 @@ Tool designed to take a small village and estimate the optimum connections, base
 """
 import numpy as np
 import pandas as pd
-from astroML.clustering import HierarchicalClustering, get_graph_segments
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from math import sqrt
 import geopandas as gpd
 import os.path
 from collections import defaultdict
+from sklearn.neighbors import kneighbors_graph
+from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
+from scipy import sparse
 
 # This is the Africa Albers Equal Area Conic EPSG: 102022
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
@@ -81,161 +83,226 @@ def load_buildings(village, file_dir, min_area):
     return buildings
 
 
-def create_network(buildings, gen_lat, gen_lng, max_length):
-    """
-    Create a network of lines and nodes from the buildings file,
-    using a Minimum spanning tree to generate the connecting
-    lines between the buildings.
+def create_network(buildings, gen_lat, gen_lng):
+	"""
+	Create a network of lines and nodes from the buildings file,
+	using a Minimum spanning tree to generate the connecting
+	lines between the buildings.
 
-    Parameters
-    ----------
-    buildings: geopandas.GeoDataFrame
-        All of the buildings with attribues and geometries.
-    gen_lat: float
-        Latitude of PV generator.
-    gen_lng: float
-        Longitude of PV generator.
-    max_length: int
-        Maximum total length of wire to use.
+	Parameters
+	----------
+	buildings: geopandas.GeoDataFrame
+	    All of the buildings with attribues and geometries.
+	gen_lat: float
+	    Latitude of PV generator.
+	gen_lng: float
+	    Longitude of PV generator.
 
-    Returns
-    -------
-    network: list of lists
-        Each list within the list contains a single network arc, with the following attributes:
-        0   index
-        1   xs
-        2   ys
-        3   xe
-        4   ye
-        5   node index first point
-        6   node index last point
-        7   whether this arc is directed (0 or 1)
-        8   arc length
-        9   whether enabled (default to 1)
-    nodes: list of list
-        Each list within contains a single building node, with the PV point at index 0.
-        Each elementhas the following attributes:
-        0   index
-        1   x
-        2   y
-        3   area_m2
-        4   marginal distance
-        5   total distance
-        6   connected (default to 0)
-        7.. connected arc indices
-    """
-    gen_lat = float(gen_lat)
-    gen_lng = float(gen_lng)
-    max_tot_length = float(max_length)
-    
-    buildings_projected = buildings.to_crs(EPSG102022)
+	Returns
+	-------
+	network: list of lists
+	    Each list within the list contains a single network arc, with the following attributes:
+	    0   index
+	    1   xs
+	    2   ys
+	    3   xe
+	    4   ye
+	    5   node index first point
+	    6   node index last point
+	    7   whether this arc is directed (0 or 1)
+	    8   arc length
+	    9   whether enabled (default to 1)
+	nodes: list of list
+	    Each list within contains a single building node, with the PV point at index 0.
+	    Each elementhas the following attributes:
+	    0   index
+	    1   x
+	    2   y
+	    3   area_m2
+	    4   marginal distance
+	    5   total distance
+	    6   connected (default to 0)
+	    7.. connected arc indices
+	"""
+	gen_lat = float(gen_lat)
+	gen_lng = float(gen_lng)
 
-    buildings_points = buildings_projected.copy()
-    buildings_points.geometry = buildings_points['geometry'].centroid
-    buildings_points['X'] = buildings_points.geometry.x
-    buildings_points['Y'] = buildings_points.geometry.y
+	buildings_projected = buildings.to_crs(EPSG102022)
 
-    # We then take all the houses and calculate the optimum network that connects them all to the PV point,
-    # before we start analysing further and deciding on the optimum network.
-    df = pd.DataFrame(buildings_points)
+	buildings_points = buildings_projected.copy()
+	buildings_points.geometry = buildings_points['geometry'].centroid
+	buildings_points['X'] = buildings_points.geometry.x
+	buildings_points['Y'] = buildings_points.geometry.y
 
-    pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
-    pv_point_projected = pv_point.copy()
-    pv_point_projected = pv_point_projected.to_crs(EPSG102022)
-    pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
-    df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
-    points = df[['X', 'Y']].as_matrix()
-    
-    min_cluster = len(df.index) - 1
-    if min_cluster >= 2:
-        model = HierarchicalClustering(n_neighbors=min_cluster, edge_cutoff=0.9, min_cluster_size=min_cluster)
-        model.fit(points)
-        T_x, T_y = get_graph_segments(model.X_train_, model.full_tree_)
-    else:
-        # in this case there will be no network
-        # need to handle somehow?
-        pass
+	# We then take all the houses and calculate the optimum network that connects them all to the PV point,
+	# before we start analysing further and deciding on the optimum network.
+	df = pd.DataFrame(buildings_points)
 
-    # This point and line data is then copied into two arrays, called *nodes* and *network*,
-    # containing the houses and lines, respectively.
-    # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
-    # astype(int) doesn't round - it just chops off the decimals
-    nodes = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
-    for node in nodes:
-        # add default 0's for marg_dist, tot_dist and connected
-        node.extend([0, 0, 0])
-        
+	pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
+	pv_point_projected = pv_point.copy()
+	pv_point_projected = pv_point_projected.to_crs(EPSG102022)
+	pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
+	df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
+	points = df[['X', 'Y']].as_matrix()
 
-    counter = 0
-    network = []
-    for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
-        network.append([counter, int(xs), int(ys), int(xe), int(ye), -99, -99, 0, 0, 1])
-        counter += 1
-        
-    # add the length for each arc
-    for arc in network:
-        arc[8] = sqrt((arc[3] - arc[1])**2 + (arc[4] - arc[2])**2)
+	T_x, T_y = get_spanning_tree(points)
+
+	"""
+	Old method using astroML
+
+	from astroML.clustering import HierarchicalClustering, get_graph_segments
+
+	min_cluster = len(df.index) - 1
+	if min_cluster >= 2:
+	    model = HierarchicalClustering(n_neighbors=min_cluster, edge_cutoff=0.9, min_cluster_size=min_cluster)
+	    model.fit(points)
+	    T_x, T_y = get_graph_segments(model.X_train_, model.full_tree_)
+	else:
+	    # in this case there will be no network
+	    # need to handle somehow?
+	    pass
+	"""
+
+	# This point and line data is then copied into two arrays, called *nodes* and *network*,
+	# containing the houses and lines, respectively.
+	# Each element represents a single house or joining arc, and has data within describing the coordinates and more.
+	# astype(int) doesn't round - it just chops off the decimals
+	nodes = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
+	for node in nodes:
+	    # add default 0's for marg_dist, tot_dist and connected
+	    node.extend([0, 0, 0])
+	    
+
+	counter = 0
+	network = []
+	for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
+	    network.append([counter, int(xs), int(ys), int(xe), int(ye), -99, -99, 0, 0, 1])
+	    counter += 1
+	    
+	# add the length for each arc
+	for arc in network:
+	    arc[8] = sqrt((arc[3] - arc[1])**2 + (arc[4] - arc[2])**2)
+
+	network, nodes = direct_network(network, nodes, 0)
+
+	# for every node, add references to every arc that connects to it
+	for arc in network:
+	    nodes[arc[5]].append(arc[0])
+	    nodes[arc[6]].append(arc[0])
+
+	return network, nodes
 
 
-    # Then we need to calculate the directionality of the network, starting from the PV location and
-    # reaching outwards to the furthest branches.
-    # We use this to calculate, for each node, it's marginal and total distance from the PV location.
-    # At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
-    # We also tell each node which arcs (at least one, up to three or four?) it is connected to.
-    def direct_network(nodes, network, index):
-        for arc in network:
-            found = False
-            if arc[1] == nodes[index][1] and arc[2] == nodes[index][2]:
-                # make sure we haven't done this arc already!
-                if arc[7] == 1:
-                    continue
-                found = True
-                
-            elif arc[3] == nodes[index][1] and arc[4] == nodes[index][2]:
-                # make sure we haven't done this arc already!
-                if arc[7] == 1:
-                    continue
-                found = True
-                
-                # flip it around because it's pointing the wrong way
-                xs_new = arc[3]
-                ys_new = arc[4]
-                arc[3] = arc[1]
-                arc[4] = arc[2]
-                arc[1] = xs_new
-                arc[2] = ys_new
-                
-            if found:    
-                arc[5] = nodes[index][0] # tell this arc that this node is its starting point
-                arc[7] = 1 # so we know this arc has been done
-                arc_index = arc[0] # store arc index to find point at the other end
-                
-                for node in nodes:
-                    if node[1] == arc[3] and node[2] == arc[4]:
-                        arc[6] = node[0] # tell this arc that this node is its ending point
-                        node[4] = arc[8] # assign arc length to node's marginal distance
-                        node[5] = nodes[index][5] + arc[8] # and calculate total distance
-                        
-                        # If this building exceeds the maximum total length allowed, disable the arc connecting it
-                        # The later algorithms respect this settings
-                        if node[5] > max_tot_length:
-                            arc[9] = 0
-                        
-                        nodes, network = direct_network(nodes, network, node[0]) # and investigate downstream from this node
-                        break
-        
-        return nodes, network
+def get_spanning_tree(X):
+	"""
+	Function to calculate the Minimum spanning tree connecting the provided points X.
+	Modified from astroML code in mst_clustering.py
 
-    # network seems to also be modified, which could be dangerous!
+	Parameters
+	----------
+	X: array_like
+		2D array of shape (n_sample, 2) containing the x- and y-coordinates of the points.
 
-    nodes, network = direct_network(nodes, network, 0)
+	Returns
+	-------
+	x_coords, y_coords : ndarrays
+	    the x and y coordinates for plotting the graph.  They are of size
+	    [2, n_links], and can be visualized using
+	    ``plt.plot(x_coords, y_coords, '-k')``
+	"""
 
-    # for every node, add references to every arc that connects to it
-    for arc in network:
-        nodes[arc[5]].append(arc[0])
-        nodes[arc[6]].append(arc[0])
+	n_neighbors = len(X) - 1
+	if n_neighbors < 2:
+		raise ValueError('Need at least three sample points')
 
-    return network, nodes
+	points = np.asarray(X, dtype=float)
+	G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
+	full_tree = minimum_spanning_tree(G, overwrite=True)
+
+	X = np.asarray(X)
+	if (X.ndim != 2) or (X.shape[1] != 2):
+	    raise ValueError('shape of X should be (n_samples, 2)')
+
+	n_samples = X.shape[0]
+
+	coo = sparse.coo_matrix(full_tree)
+	A = X[coo.row].T
+	B = X[coo.col].T
+
+	x_coords = np.vstack([A[0], B[0]])
+	y_coords = np.vstack([A[1], B[1]])
+
+	return x_coords, y_coords
+
+
+def direct_network(network, nodes, index):
+	"""
+	Recursive function to direct the network from the PV point outwards
+	We need to calculate the directionality of the network, starting from the PV location and
+	reaching outwards to the furthest branches.
+	We use this to calculate, for each node, it's marginal and total distance from the PV location.
+	At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
+	We also tell each node which arcs (at least one, up to three or four?) it is connected to.
+
+	Parameters
+	----------
+	network: list of lists
+	    Containing the arc representations.
+	nodes: list of lists
+	    Containing the building node representations.
+	index: int
+		Current node index that we're looking at.
+
+	Returns
+	-------
+	network: list of lists
+		Nearby network directed for current node.
+	nodes: list of list
+		The nodes object.
+	"""
+	for arc in network:
+	    found = False
+	    if arc[1] == nodes[index][1] and arc[2] == nodes[index][2]:
+	        # make sure we haven't done this arc already!
+	        if arc[7] == 1:
+	            continue
+	        found = True
+	        
+	    elif arc[3] == nodes[index][1] and arc[4] == nodes[index][2]:
+	        # make sure we haven't done this arc already!
+	        if arc[7] == 1:
+	            continue
+	        found = True
+	        
+	        # flip it around because it's pointing the wrong way
+	        xs_new = arc[3]
+	        ys_new = arc[4]
+	        arc[3] = arc[1]
+	        arc[4] = arc[2]
+	        arc[1] = xs_new
+	        arc[2] = ys_new
+	        
+	    if found:    
+	        arc[5] = nodes[index][0] # tell this arc that this node is its starting point
+	        arc[7] = 1 # so we know this arc has been done
+	        arc_index = arc[0] # store arc index to find point at the other end
+	        
+	        for node in nodes:
+	            if node[1] == arc[3] and node[2] == arc[4]:
+	                arc[6] = node[0] # tell this arc that this node is its ending point
+	                node[4] = arc[8] # assign arc length to node's marginal distance
+	                node[5] = nodes[index][5] + arc[8] # and calculate total distance
+	                
+	                # If this building exceeds the maximum total length allowed, disable the arc connecting it
+	                # The later algorithms respect this settings
+	                # DISABLED
+	                # if node[5] > max_length:
+	                #    arc[9] = 0
+	                
+	                network, nodes = direct_network(network, nodes, node[0]) # and investigate downstream from this node
+	                break
+
+	return network, nodes
 
 
 def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
@@ -246,7 +313,7 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
     Parameters
     ----------
     network: list of lists
-        Containing te arc representations.
+        Containing the arc representations.
     nodes: list of lists
         Containing the building node representations.
     demand: int

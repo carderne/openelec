@@ -120,7 +120,6 @@ function addGenLocation(e) {
         table.insertRow(-1).innerHTML = '<td>Annual Opex <small>(% of Capex)</small></td><td><input type="text" name="opex-ratio" value="1" size="5"></td>'
         table.insertRow(-1).innerHTML = '<td>Project lifetime <small>(years)</small></td><td><input type="text" name="years" value="10" size="5"></td>'
         table.insertRow(-1).innerHTML = '<td>Discount rate <small>(%)</small></td><td><input type="text" name="discount-rate" value="6" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Max wire length <small>(m)<small></td><td><input type="text" name="max-length" value="10000" size="5"></td>'
 
         var run = document.getElementById("run")
         run.innerHTML = '<input type="submit" name="run" value="Run (and be patient)" onclick="runModel()">'
@@ -146,8 +145,7 @@ function runModel() {
             cost_connection: $('input[name="cost-connection"]').val(),
             opex_ratio: $('input[name="opex-ratio"]').val() / 100,
             years: $('input[name="years"]').val(),
-            discount_rate: $('input[name="discount-rate"]').val() / 100,
-            max_length: $('input[name="max-length"]').val()
+            discount_rate: $('input[name="discount-rate"]').val() / 100
         },
         success: updateWithResults
     });
