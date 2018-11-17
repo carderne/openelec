@@ -2,6 +2,7 @@
 *.png
 *.xlsx
 stats.ipynb
+test_speed.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

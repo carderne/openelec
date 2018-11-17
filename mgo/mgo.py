@@ -84,208 +84,212 @@ def load_buildings(village, file_dir, min_area):
 
 
 def create_network(buildings, gen_lat, gen_lng):
-	"""
-	Create a network of lines and nodes from the buildings file,
-	using a Minimum spanning tree to generate the connecting
-	lines between the buildings.
+    """
+    Create a network of lines and nodes from the buildings file,
+    using a Minimum spanning tree to generate the connecting
+    lines between the buildings.
 
-	Parameters
-	----------
-	buildings: geopandas.GeoDataFrame
-	    All of the buildings with attribues and geometries.
-	gen_lat: float
-	    Latitude of PV generator.
-	gen_lng: float
-	    Longitude of PV generator.
+    Parameters
+    ----------
+    buildings: geopandas.GeoDataFrame
+        All of the buildings with attribues and geometries.
+    gen_lat: float
+        Latitude of PV generator.
+    gen_lng: float
+        Longitude of PV generator.
 
-	Returns
-	-------
-	network: list of lists
-	    Each list within the list contains a single network arc, with the following attributes:
-	    0   index
-	    1   xs
-	    2   ys
-	    3   xe
-	    4   ye
-	    5   node index first point
-	    6   node index last point
-	    7   whether this arc is directed (0 or 1)
-	    8   arc length
-	    9   whether enabled (default to 1)
-	nodes: list of list
-	    Each list within contains a single building node, with the PV point at index 0.
-	    Each elementhas the following attributes:
-	    0   index
-	    1   x
-	    2   y
-	    3   area_m2
-	    4   marginal distance
-	    5   total distance
-	    6   connected (default to 0)
-	    7.. connected arc indices
-	"""
-	gen_lat = float(gen_lat)
-	gen_lng = float(gen_lng)
+    Returns
+    -------
+    network: list of lists
+        Each list within the list contains a single network arc, with the following attributes:
+        0   index
+        1   xs
+        2   ys
+        3   xe
+        4   ye
+        5   node index first point
+        6   node index last point
+        7   whether this arc is directed (0 or 1)
+        8   arc length
+        9   whether enabled (default to 1)
+    nodes: list of list
+        Each list within contains a single building node, with the PV point at index 0.
+        Each elementhas the following attributes:
+        0   index
+        1   x
+        2   y
+        3   area_m2
+        4   marginal distance
+        5   total distance
+        6   connected (default to 0)
+        7.. connected arc indices
+    """
+    gen_lat = float(gen_lat)
+    gen_lng = float(gen_lng)
 
-	buildings_projected = buildings.to_crs(EPSG102022)
+    buildings_projected = buildings.to_crs(EPSG102022)
 
-	buildings_points = buildings_projected.copy()
-	buildings_points.geometry = buildings_points['geometry'].centroid
-	buildings_points['X'] = buildings_points.geometry.x
-	buildings_points['Y'] = buildings_points.geometry.y
+    buildings_points = buildings_projected.copy()
+    buildings_points.geometry = buildings_points['geometry'].centroid
+    buildings_points['X'] = buildings_points.geometry.x
+    buildings_points['Y'] = buildings_points.geometry.y
 
-	# We then take all the houses and calculate the optimum network that connects them all to the PV point,
-	# before we start analysing further and deciding on the optimum network.
-	df = pd.DataFrame(buildings_points)
+    # We then take all the houses and calculate the optimum network that connects them all to the PV point,
+    # before we start analysing further and deciding on the optimum network.
+    df = pd.DataFrame(buildings_points)
 
-	pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
-	pv_point_projected = pv_point.copy()
-	pv_point_projected = pv_point_projected.to_crs(EPSG102022)
-	pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
-	df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
-	points = df[['X', 'Y']].as_matrix()
+    pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
+    pv_point_projected = pv_point.copy()
+    pv_point_projected = pv_point_projected.to_crs(EPSG102022)
+    pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
+    df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
+    points = df[['X', 'Y']].as_matrix()
 
-	T_x, T_y = get_spanning_tree(points)
+    T_x, T_y = get_spanning_tree(points)
 
-	# This point and line data is then copied into two arrays, called *nodes* and *network*,
-	# containing the houses and lines, respectively.
-	# Each element represents a single house or joining arc, and has data within describing the coordinates and more.
-	# astype(int) doesn't round - it just chops off the decimals
-	nodes = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
-	for node in nodes:
-	    # add default 0's for marg_dist, tot_dist and connected
-	    node.extend([0, 0, 0])
-	    
-	counter = 0
-	network = []
-	for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
-	    network.append([counter, int(xs), int(ys), int(xe), int(ye), -99, -99, 0, 0, 1])
-	    counter += 1
-	    
-	# add the length for each arc
-	for arc in network:
-	    arc[8] = sqrt((arc[3] - arc[1])**2 + (arc[4] - arc[2])**2)
+    # This point and line data is then copied into two arrays, called *nodes* and *network*,
+    # containing the houses and lines, respectively.
+    # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
+    # astype(int) doesn't round - it just chops off the decimals
+    nodes_list = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
+    #for node in nodes:
+        # add default 0's for marg_dist, tot_dist and connected
+    #    node.extend([0, 0, 0])
 
-	network, nodes = direct_network(network, nodes, 0)
+    nodes = []
+    for n in nodes_list:
+        nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'marg_dist': 0, 'tot_dist': 0, 'conn': 0, 'arcs': []})
+        
+    counter = 0
+    network = []
+    for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
+        network.append({'i': counter, 'xs': int(xs), 'ys': int(ys), 'xe': int(xe), 'ye': int(ye), 'ns':-99, 'ne':-99, 'dir':0, 'len':0, 'enabled':1})
+        counter += 1
+        
+    # add the length for each arc
+    for arc in network:
+        arc['len'] = sqrt((arc['xe'] - arc['xs'])**2 + (arc['ye'] - arc['ys'])**2)
 
-	# for every node, add references to every arc that connects to it
-	for arc in network:
-	    nodes[arc[5]].append(arc[0])
-	    nodes[arc[6]].append(arc[0])
+    network, nodes = direct_network(network, nodes, 0)
 
-	return network, nodes
+    # for every node, add references to every arc that connects to it
+    for arc in network:
+        nodes[arc['ns']]['arcs'].append(arc['i'])
+        nodes[arc['ne']]['arcs'].append(arc['i'])
+
+    return network, nodes
 
 
 def get_spanning_tree(X):
-	"""
-	Function to calculate the Minimum spanning tree connecting the provided points X.
-	Modified from astroML code in mst_clustering.py
+    """
+    Function to calculate the Minimum spanning tree connecting the provided points X.
+    Modified from astroML code in mst_clustering.py
 
-	Parameters
-	----------
-	X: array_like
-		2D array of shape (n_sample, 2) containing the x- and y-coordinates of the points.
+    Parameters
+    ----------
+    X: array_like
+        2D array of shape (n_sample, 2) containing the x- and y-coordinates of the points.
 
-	Returns
-	-------
-	x_coords, y_coords : ndarrays
-	    the x and y coordinates for plotting the graph.  They are of size
-	    [2, n_links], and can be visualized using
-	    ``plt.plot(x_coords, y_coords, '-k')``
-	"""
+    Returns
+    -------
+    x_coords, y_coords : ndarrays
+        the x and y coordinates for plotting the graph.  They are of size
+        [2, n_links], and can be visualized using
+        ``plt.plot(x_coords, y_coords, '-k')``
+    """
 
-	n_neighbors = len(X) - 1
-	if n_neighbors < 2:
-		raise ValueError('Need at least three sample points')
+    n_neighbors = len(X) - 1
+    if n_neighbors < 2:
+        raise ValueError('Need at least three sample points')
 
-	points = np.asarray(X, dtype=float)
-	G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
-	full_tree = minimum_spanning_tree(G, overwrite=True)
+    points = np.asarray(X, dtype=float)
+    G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
+    full_tree = minimum_spanning_tree(G, overwrite=True)
 
-	X = np.asarray(X)
-	if (X.ndim != 2) or (X.shape[1] != 2):
-	    raise ValueError('shape of X should be (n_samples, 2)')
+    X = np.asarray(X)
+    if (X.ndim != 2) or (X.shape[1] != 2):
+        raise ValueError('shape of X should be (n_samples, 2)')
 
-	n_samples = X.shape[0]
+    n_samples = X.shape[0]
 
-	coo = sparse.coo_matrix(full_tree)
-	A = X[coo.row].T
-	B = X[coo.col].T
+    coo = sparse.coo_matrix(full_tree)
+    A = X[coo.row].T
+    B = X[coo.col].T
 
-	x_coords = np.vstack([A[0], B[0]])
-	y_coords = np.vstack([A[1], B[1]])
+    x_coords = np.vstack([A[0], B[0]])
+    y_coords = np.vstack([A[1], B[1]])
 
-	return x_coords, y_coords
+    return x_coords, y_coords
 
 
 def direct_network(network, nodes, index):
-	"""
-	Recursive function to direct the network from the PV point outwards
-	We need to calculate the directionality of the network, starting from the PV location and
-	reaching outwards to the furthest branches.
-	We use this to calculate, for each node, it's marginal and total distance from the PV location.
-	At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
-	We also tell each node which arcs (at least one, up to three or four?) it is connected to.
+    """
+    Recursive function to direct the network from the PV point outwards
+    We need to calculate the directionality of the network, starting from the PV location and
+    reaching outwards to the furthest branches.
+    We use this to calculate, for each node, it's marginal and total distance from the PV location.
+    At the same time, we tell each arc which node is 'upstream' of it, and which is 'downstream'.
+    We also tell each node which arcs (at least one, up to three or four?) it is connected to.
 
-	Parameters
-	----------
-	network: list of lists
-	    Containing the arc representations.
-	nodes: list of lists
-	    Containing the building node representations.
-	index: int
-		Current node index that we're looking at.
+    Parameters
+    ----------
+    network: list of dicts
+        Containing the arc representations.
+    nodes: list of dicts
+        Containing the building node representations.
+    index: int
+        Current node index that we're looking at.
 
-	Returns
-	-------
-	network: list of lists
-		Nearby network directed for current node.
-	nodes: list of list
-		The nodes object.
-	"""
-	for arc in network:
-	    found = False
-	    if arc[1] == nodes[index][1] and arc[2] == nodes[index][2]:
-	        # make sure we haven't done this arc already!
-	        if arc[7] == 1:
-	            continue
-	        found = True
-	        
-	    elif arc[3] == nodes[index][1] and arc[4] == nodes[index][2]:
-	        # make sure we haven't done this arc already!
-	        if arc[7] == 1:
-	            continue
-	        found = True
-	        
-	        # flip it around because it's pointing the wrong way
-	        xs_new = arc[3]
-	        ys_new = arc[4]
-	        arc[3] = arc[1]
-	        arc[4] = arc[2]
-	        arc[1] = xs_new
-	        arc[2] = ys_new
-	        
-	    if found:    
-	        arc[5] = nodes[index][0] # tell this arc that this node is its starting point
-	        arc[7] = 1 # so we know this arc has been done
-	        arc_index = arc[0] # store arc index to find point at the other end
-	        
-	        for node in nodes:
-	            if node[1] == arc[3] and node[2] == arc[4]:
-	                arc[6] = node[0] # tell this arc that this node is its ending point
-	                node[4] = arc[8] # assign arc length to node's marginal distance
-	                node[5] = nodes[index][5] + arc[8] # and calculate total distance
-	                
-	                # If this building exceeds the maximum total length allowed, disable the arc connecting it
-	                # The later algorithms respect this settings
-	                # DISABLED
-	                # if node[5] > max_length:
-	                #    arc[9] = 0
-	                
-	                network, nodes = direct_network(network, nodes, node[0]) # and investigate downstream from this node
-	                break
+    Returns
+    -------
+    network: list of lists
+        Nearby network directed for current node.
+    nodes: list of list
+        The nodes object.
+    """
+    for arc in network:
+        found = False
+        if arc['xs'] == nodes[index]['x'] and arc['ys'] == nodes[index]['y']:
+            # make sure we haven't done this arc already!
+            if arc['dir'] == 1:
+                continue
+            found = True
+            
+        elif arc['xe'] == nodes[index]['x'] and arc['ye'] == nodes[index]['y']:
+            # make sure we haven't done this arc already!
+            if arc['dir'] == 1:
+                continue
+            found = True
+            
+            # flip it around because it's pointing the wrong way
+            xs_new = arc['xe']
+            ys_new = arc['ye']
+            arc['xe'] = arc['xs']
+            arc['ye'] = arc['ys']
+            arc['xs'] = xs_new
+            arc['ys'] = ys_new
+            
+        if found:    
+            arc['ns'] = nodes[index]['i'] # tell this arc that this node is its starting point
+            arc['dir'] = 1 # so we know this arc has been done
+            arc_index = arc['i'] # store arc index to find point at the other end
+            
+            for node in nodes:
+                if node['x'] == arc['xe'] and node['y'] == arc['ye']:
+                    arc['ne'] = node['i'] # tell this arc that this node is its ending point
+                    node['marg_dist'] = arc['len'] # assign arc length to node's marginal distance
+                    node['tot_dist'] = nodes[index]['marg_dist'] + arc['len'] # and calculate total distance
+                    
+                    # If this building exceeds the maximum total length allowed, disable the arc connecting it
+                    # The later algorithms respect this settings
+                    # DISABLED
+                    # if node[5] > max_length:
+                    #    arc[9] = 0
+                    
+                    network, nodes = direct_network(network, nodes, node['i']) # and investigate downstream from this node
+                    break
 
-	return network, nodes
+    return network, nodes
 
 
 def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
@@ -295,9 +299,9 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
 
     Parameters
     ----------
-    network: list of lists
+    network: list of dicts
         Containing the arc representations.
-    nodes: list of lists
+    nodes: list of dicts
         Containing the building node representations.
     demand: int
         Demand in kWh/person/month.
@@ -337,7 +341,7 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
 
     num_people_per_m2 = 0.15  # bit of a guess that there are 4 people in 40m2 house
     demand_per_person_kw_peak = demand_per_person_kwh_month / (4*30)  # 130 is based on MTF numbers, should use a real demand curve
-    gen_size_kw = sum([n[3] for n in nodes]) * num_people_per_m2 * demand_per_person_kw_peak
+    gen_size_kw = sum([n['area'] for n in nodes]) * num_people_per_m2 * demand_per_person_kw_peak
     cost_gen = gen_size_kw * gen_cost_per_kw
 
 
@@ -347,14 +351,14 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
         # calculate profit on those nodes, and then recurse!
         # disabled_arc should be treated as if disabled
         
-        # first calculate tehe profitability of thise node?
-        cost += cost_wire * nodes[index][4] + cost_connection
-        income_per_month += nodes[index][3] * num_people_per_m2 * demand_per_person_kwh_month * tariff
+        # first calculate the profitability of thise node?
+        cost += cost_wire * nodes[index]['marg_dist'] + cost_connection
+        income_per_month += nodes[index]['area'] * num_people_per_m2 * demand_per_person_kwh_month * tariff
         
-        connected_arcs = [network[arc_index] for arc_index in nodes[index][7:]]
+        connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
         for arc in connected_arcs:
-            if arc[9] == 1 and arc[0] != disabled_arc_index and arc[5] == index:
-                cost, income_per_month, nodes, network = calculate_profit(nodes, network, arc[6], disabled_arc_index, cost, income_per_month)
+            if arc['enabled'] == 1 and arc['i'] != disabled_arc_index and arc['ns'] == index:
+                cost, income_per_month, nodes, network = calculate_profit(nodes, network, arc['ne'], disabled_arc_index, cost, income_per_month)
                 
         return cost, income_per_month, nodes, network
 
@@ -373,7 +377,7 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 # use a recursive function to calculate profitability of network
                 # this should all be done in a temporary network variable
                 # and indicate that this arc should be treated as if disabled
-                cost, income_per_month, nodes, network = calculate_profit(nodes, network, 0, arc[0], 0, 0)
+                cost, income_per_month, nodes, network = calculate_profit(nodes, network, 0, arc['i'], 0, 0)
 
                 capex = cost_gen + cost
                 opex = (opex_ratio * capex)
@@ -390,10 +394,10 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 if npv > best_npv:
                     found = True
                     best_npv = npv
-                    best_npv_index = arc[0]
+                    best_npv_index = arc['i']
             if found:
                 # disable that arc
-                network[best_npv_index][9] = 0
+                network[best_npv_index]['enabled'] = 0
 
             # now repeat the above steps for the whole network again
             # until we go through without finding a more profitable setup than what we already have
@@ -411,7 +415,7 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 # use a recursive function to calculate profitability of network
                 # this should all be done in a temporary network variable
                 # and indicate that this arc should be treated as if disabled
-                cost, income_per_month, nodes, network = calculate_profit(nodes, network, 0, arc[0], 0, 0)
+                cost, income_per_month, nodes, network = calculate_profit(nodes, network, 0, arc['i'], 0, 0)
         
                 capex = cost_gen + cost
                 opex = (opex_ratio * capex)
@@ -425,16 +429,16 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 counter += 1
         
                 # check if this is the most profitable yet
-                if npv > best_npv and arc[9] == 1:
+                if npv > best_npv and arc['enabled'] == 1:
                     found = True
                     best_npv = npv
-                    best_npv_index = arc[0]
+                    best_npv_index = arc['i']
                     
             if found:
                 # disable that arc
-                network[best_npv_index][9] = 0
+                network[best_npv_index]['enabled'] = 0
         
-            actual_coverage = len([arc for arc in network if arc[9] == 1])/total_arcs
+            actual_coverage = len([arc for arc in network if arc['enabled'] == 1])/total_arcs
             if actual_coverage <= target_coverage:
                 break
                                 
@@ -447,12 +451,12 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
         # and only follow the paths of connected houses
         
         # this node is connected
-        nodes[index][6] = 1
+        nodes[index]['conn'] = 1
         
-        connected_arcs = [network[arc_index] for arc_index in nodes[index][7:]]
+        connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
         for arc in connected_arcs:
-            if arc[9] == 1 and arc[5] == index:
-                connect_houses(nodes, network, arc[6])
+            if arc['enabled'] == 1 and arc['ns'] == index:
+                connect_houses(nodes, network, arc['ne'])
                 
         return nodes, network
         
@@ -460,10 +464,10 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
 
     # and do the same for the stranded arcs
     for node in nodes:
-        if node[6] == 0:
-            connected_arcs = [network[arc_index] for arc_index in node[7:]]
+        if node['conn'] == 0:
+            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
             for arc in connected_arcs:
-                arc[9] = 0
+                arc['enabled'] = 0
 
 
     # And calculate some quick summary numbers for the village
@@ -473,17 +477,17 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
     income_per_month = 0
     gen_size_kw = 0
     for node in nodes:
-        if node[6] == 1:
+        if node['conn'] == 1:
             count_nodes += 1
-            income_per_month += node[3] * num_people_per_m2 * demand_per_person_kwh_month * tariff
-            gen_size_kw += node[3] * num_people_per_m2 * demand_per_person_kw_peak
+            income_per_month += node['area'] * num_people_per_m2 * demand_per_person_kwh_month * tariff
+            gen_size_kw += node['area'] * num_people_per_m2 * demand_per_person_kw_peak
     
     count_nodes -= 1  # so we don't count the generator
 
     total_length = 0.0
     for arc in network:
-        if arc[9] == 1:
-            total_length += arc[8]
+        if arc['enabled'] == 1:
+            total_length += arc['len']
 
     capex = gen_size_kw * gen_cost_per_kw + cost_connection * count_nodes + cost_wire * total_length
     opex = (opex_ratio * capex)
@@ -512,9 +516,9 @@ def network_to_spatial(buildings, network, nodes):
     ----------
     buildings: geopandas.GeoDataFrame
         Original buildings with WGS84 geometries. Used to join nodes into.
-    network: list of lists
-        Containing te arc representations.
-    nodes: list of lists
+    network: list of dicts
+        Containing the arc representations.
+    nodes: list of dicts
         Containing the building node representations.
 
     Returns
@@ -527,18 +531,21 @@ def network_to_spatial(buildings, network, nodes):
     # ### And then do a spatial join to get the results back into a polygon shapefile
     # join the resultant points with the orignal buildings_projected
     # create geometries from X and Y points and create gdf
-    nodes_for_df = [node[0:7] for node in nodes] # drop the extra columsn that will confuse a df
-    nodes_df = pd.DataFrame(columns=['index', 'X', 'Y', 'area', 'marg_dist', 'tot_dist',
-                                      'connected'], data=nodes_for_df)
+    #nodes_for_df = [node[0:7] for node in nodes] # drop the extra columsn that will confuse a df
+    #nodes_df = pd.DataFrame(columns=['index', 'X', 'Y', 'area', 'marg_dist', 'tot_dist',
+    #                                  'connected'], data=nodes_for_df)
+
+    nodes_df = pd.DataFrame(nodes).drop(columns=['area', 'arcs'])
     nodes_df.index = nodes_df.index - 1  # to get rid of pv point
-    nodes_df = nodes_df.drop(columns=['area'])  # otherwise left and right in join have area in them
+    #nodes_df = nodes_df.drop(columns=['area'])  # otherwise left and right in join have area in them
     buildings_gdf = buildings.merge(nodes_df, left_index=True, right_index=True)
-    buildings_gdf = buildings_gdf.loc[buildings_gdf['connected'] == 1]
+    buildings_gdf = buildings_gdf.loc[buildings_gdf['conn'] == 1]
 
     # do the same for the network array
-    network_df = pd.DataFrame(columns=['idx', 'xs', 'ys', 'xe', 'ye', 'node_start', 'node_end',
-                                       'directed', 'length', 'enabled'], data=network)
-    network_geometry = [LineString([(arc[1], arc[2]), (arc[3], arc[4])]) for arc in network]
+    #network_df = pd.DataFrame(columns=['idx', 'xs', 'ys', 'xe', 'ye', 'node_start', 'node_end',
+    #                                   'directed', 'length', 'enabled'], data=network)
+    network_df = pd.DataFrame(network)
+    network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
     network_gdf = gpd.GeoDataFrame(network_df, crs=EPSG102022, geometry=network_geometry)
     network_gdf = network_gdf.to_crs(epsg=4326)
     network_gdf = network_gdf.loc[network_gdf['enabled'] == 1]
@@ -555,6 +562,12 @@ def gdf_to_geojson(gdf, property_cols=[]):
     gdf: geopandas.GeoDataFrame
         GeoDataFrame to be converted.
     property_cols: list, optional
+        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
+
+    Returns
+    -------
+    geoJson: dict
+        A GeoJSON representatial
         List of column names from gdf to be included in 'properties' of each GeoJSON feature.
 
     Returns
