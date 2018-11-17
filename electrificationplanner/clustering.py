@@ -110,6 +110,7 @@ def create_clusters(raster, affine, crs):
 	return clusters
 
 
+# TODO Could instead filter at the raster stage?
 def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, buffer_amount=150):
 	"""
 	The vectors created by create_clusters() are a single square for each raster pixel.
