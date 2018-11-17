@@ -1,5 +1,22 @@
-# minigrid-optimiser
-[![Build Status](https://travis-ci.org/carderne/minigrid-optimiser.svg?branch=master)](https://travis-ci.org/carderne/minigrid-optimiser)
+# openelec
+[![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec)
+
+This is a slowly merging combination of two tools: 
+
+1. Creating national-level plans for achieving universal electricity access
+2. Optimising town/village-level mini-grid, densification and standalone systems.
+
+
+
+## National-level
+
+A tool for modelling the optimal pathways to improving electricity access.
+
+Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
+
+
+
+## Town-level
 
 A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) using OpenStreetMap building data and a minimum spanning tree approach to network optimisation. 
 
@@ -61,13 +78,3 @@ python mgo_app.py
 ```
 
 and navigate to http://127.0.0.1:5000/ in a browser to access the web app.
-
---------------------
-
-# electrification-planner
-
-[![Build Status](https://travis-ci.org/carderne/electrification-planner.svg?branch=master)](https://travis-ci.org/carderne/electrification-planner)
-
-A tool for modelling the optimal pathways to improving electricity access.
-
-Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
