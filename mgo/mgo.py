@@ -147,22 +147,6 @@ def create_network(buildings, gen_lat, gen_lng):
 
 	T_x, T_y = get_spanning_tree(points)
 
-	"""
-	Old method using astroML
-
-	from astroML.clustering import HierarchicalClustering, get_graph_segments
-
-	min_cluster = len(df.index) - 1
-	if min_cluster >= 2:
-	    model = HierarchicalClustering(n_neighbors=min_cluster, edge_cutoff=0.9, min_cluster_size=min_cluster)
-	    model.fit(points)
-	    T_x, T_y = get_graph_segments(model.X_train_, model.full_tree_)
-	else:
-	    # in this case there will be no network
-	    # need to handle somehow?
-	    pass
-	"""
-
 	# This point and line data is then copied into two arrays, called *nodes* and *network*,
 	# containing the houses and lines, respectively.
 	# Each element represents a single house or joining arc, and has data within describing the coordinates and more.
@@ -172,7 +156,6 @@ def create_network(buildings, gen_lat, gen_lng):
 	    # add default 0's for marg_dist, tot_dist and connected
 	    node.extend([0, 0, 0])
 	    
-
 	counter = 0
 	network = []
 	for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
