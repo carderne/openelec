@@ -3,6 +3,10 @@
 *.xlsx
 stats.ipynb
 test_speed.ipynb
+*.png
+*.qgz
+ignore_data/
+Scratch.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
