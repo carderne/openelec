@@ -44,41 +44,18 @@ def create_network(clusters):
 
     T_x, T_y = mgo.get_spanning_tree(points)
 
-    # This point and line data is then copied into two arrays, called *nodes* and *network*,
-    # containing the clusters and lines, respectively. Each element represents a single cluster or joining arc,
+    # This point and line data is then copied into two arrays, called network and nodes,
+    # containing the lines and clusters, respectively. Each element represents a single cluster or joining arc,
     # and has data within describing the coordinates and more.
-
-    # **Structure for nodes**  
-    # 0   index  
-    # 1   x  
-    # 2   y  
-    # 3   area_m2  
-    # 4   pop_sum  
-    # 5   connected  
-    # 6   new_conn  
-    # 7   off_grid_cost  
-    # 8   [connected arc indices]  
-    # 
-    # **Structure for network**  
-    # 0   index  
-    # 1   xs  
-    # 2   ys  
-    # 3   xe  
-    # 4   ye  
-    # 5   node index first point  
-    # 6   node index last point  
-    # 7   existing  
-    # 8   arc length  
-    # 9   whether enabled
 
     df['conn_end'] = df['conn_start']
     df['off_grid_cost'] = 0
 
-    nodes = df[['X', 'Y', 'area_m2', 'pop_sum', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
-
+    nodes_list = df[['X', 'Y', 'area_m2', 'pop_sum', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
+    nodes = []
     # add an empty list at position 8 for connected arc indices
-    for node in nodes:
-        node.append([])
+    for n in nodes_list:
+        nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'pop': n[4], 'conn_start': n[5], 'conn_end': n[6], 'og_cost': n[7], 'arcs': []})
 
     counter = 0
     network = []
@@ -88,7 +65,7 @@ def create_network(clusters):
         xe = int(xe)
         ye = int(ye)
         length = int(sqrt((xe - xs)**2 + (ye - ys)**2))
-        network.append([counter, xs, ys, xe, ye, None, None, 1, length, 1])
+        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': None, 'ne': None, 'existing': 1, 'len': length, 'enabled': 1})
         counter += 1
 
 
@@ -96,16 +73,16 @@ def create_network(clusters):
 
     # for every node, add references to every arc that connects to it
     for arc in network:
-        nodes[arc[5]][8].append(arc[0])
-        nodes[arc[6]][8].append(arc[0])
+        nodes[arc['ns']]['arcs'].append(arc['i'])
+        nodes[arc['ne']]['arcs'].append(arc['i'])
         
     # set which arcs don't already exist (and the remainder do!)
     for node in nodes:
-        if node[5] == 0:
-            connected_arcs = [network[arc_index] for arc_index in node[8]]
+        if node['conn_start'] == 0:
+            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
             for arc in connected_arcs:
-                arc[7] = 0
-                arc[9] = 0 
+                arc['existing'] = 0
+                arc['enabled'] = 0 
 
     return network, nodes
 
@@ -119,20 +96,20 @@ def connect_network(network, nodes, index):
     cur_node = nodes[index]
     for arc in network:
         found = 0
-        if arc[5] == None and arc[6] == None:  # if this arc has no connected nodes
-            if (arc[1] == cur_node[1] and arc[2] == cur_node[2]):  # if the xs and ys match a node
-                found = 3  # point towards position 3 (xe) for the next node
-            if (arc[3] == cur_node[1] and arc[4] == cur_node[2]):  # if the xe and ye match a node
-                found = 1  # point towards position 1 (xs) for the next node
+        if arc['ns'] == None and arc['ne'] == None:  # if this arc has no connected nodes
+            if (arc['xs'] == cur_node['x'] and arc['ys'] == cur_node['y']):  # if the xs and ys match a node
+                found = 'xe'  # point towards position 3 (xe) for the next node
+            if (arc['xe'] == cur_node['x'] and arc['ye'] == cur_node['y']):  # if the xe and ye match a node
+                found = 'xs'  # point towards position 1 (xs) for the next node
 
             if found:
-                arc[5] = cur_node[0] # tell this arc that this node is its starting point
+                arc['ns'] = cur_node['i'] # tell this arc that this node is its starting point
             
                 for node in nodes:
-                    if node[0] != cur_node[0]:  # make sure we look at hte other end of the arc
-                        if node[1] == arc[found] and node[2] == arc[found+1]:
-                            arc[6] = node[0] # tell this arc that this node is its ending point                  
-                            network, nodes = connect_network(network, nodes, node[0]) # and investigate downstream
+                    if node['i'] != cur_node['i']:  # make sure we look at hte other end of the arc
+                        if node['x'] == arc[found] and node['y'] == arc['ye' if found == 'xe' else 'ys']:
+                            arc['ne'] = node['i'] # tell this arc that this node is its ending point                  
+                            network, nodes = connect_network(network, nodes, node['i']) # and investigate downstream
                             break
     
     return network, nodes
@@ -145,8 +122,8 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
 
     # First calcaulte the off-grid cost for each unconnected settlement
     for node in nodes:
-        if node[5] == 0:
-            node[7] = node[4]*demand_per_person_kw_peak*mg_gen_cost_per_kw + node[3]*mg_cost_per_m2
+        if node['conn_start'] == 0:
+            node['og_cost'] = node['pop']*demand_per_person_kw_peak*mg_gen_cost_per_kw + node['area']*mg_cost_per_m2
 
 
     # Then we're ready to calculate the optimum grid extension.
@@ -162,11 +139,11 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
     # Thus these will remmber the best solution including all side meanders.
 
     def find_best(nodes, network, index, prev_arc, b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs):
-        if nodes[index][6] == 0:  # don't do anything with already connected nodes
+        if nodes[index]['conn_end'] == 0:  # don't do anything with already connected nodes
             
             
-            c_pop += nodes[index][4]
-            c_length += network[prev_arc][8]
+            c_pop += nodes[index]['pop']
+            c_length += network[prev_arc]['len']
             c_nodes = c_nodes[:] + [index]
             c_arcs = c_arcs[:] + [prev_arc]
                   
@@ -176,13 +153,13 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
                 b_nodes[:] = c_nodes[:]
                 b_arcs[:] = c_arcs[:]
         
-            connected_arcs = [network[arc_index] for arc_index in nodes[index][8]]
+            connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
             for arc in connected_arcs:
-                if arc[9] == 0 and arc[0] != prev_arc:
+                if arc['enabled'] == 0 and arc['i'] != prev_arc:
 
-                    goto = 6 if arc[5] == index else 5  # make sure we look at the other end of the arc
+                    goto = 'ne' if arc['ns'] == index else 'ns'  # make sure we look at the other end of the arc
                     nodes, network, b_pop, b_length, best_nodes, best_arcs = find_best(
-                        nodes, network, arc[goto], arc[0], b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs)
+                        nodes, network, arc[goto], arc['i'], b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs)
                     
         return nodes, network, b_pop, b_length, b_nodes, b_arcs
 
@@ -191,23 +168,23 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
         to_be_connected = []
         
         for node in nodes:
-            if node[6] == 1:  # only start searches from currently connected nodes
+            if node['conn_end'] == 1:  # only start searches from currently connected nodes
                 
-                connected_arcs = [network[arc_index] for arc_index in node[8]]
+                connected_arcs = [network[arc_index] for arc_index in node['arcs']]
                 for arc in connected_arcs:
-                    if arc[9] == 0:
-                        goto = 6 if arc[5] == node[0] else 5
+                    if arc['enabled'] == 0:
+                        goto = 'ne' if arc['ns'] == node['i'] else 'ns'
                         
                         # function call a bit of a mess with all the c_ and b_ values
                         nodes, network, b_length, b_pop, b_nodes, b_arcs = find_best(
-                            nodes, network, arc[goto], arc[0], 0, 1e-9, [], [], 0, 1e-9, [], [])                
+                            nodes, network, arc[goto], arc['i'], 0, 1e-9, [], [], 0, 1e-9, [], [])                
 
                         # calculate the mg and grid costs of the resultant configuration
                         best_nodes = [nodes[i] for i in b_nodes]
                         best_arcs = [network[i] for i in b_arcs]
-                        mg_cost = sum([node[7] for node in best_nodes])
-                        grid_cost = (cost_wire_per_m * sum(arc[8] for arc in best_arcs) + 
-                                     grid_cost_per_m2 * sum([node[3] for node in best_nodes]))
+                        mg_cost = sum([node['og_cost'] for node in best_nodes])
+                        grid_cost = (cost_wire_per_m * sum(arc['len'] for arc in best_arcs) + 
+                                     grid_cost_per_m2 * sum([node['area'] for node in best_nodes]))
 
                         if grid_cost < mg_cost:
                             # check if any nodes are already in to_be_connected
@@ -225,12 +202,11 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
             
         # mark all to_be_connected as actually connected
         if len(to_be_connected) >= 1:
-            print(len(to_be_connected))
             for item in to_be_connected:
                 for node in item[1]:
-                    nodes[node][6] = 1
+                    nodes[node]['conn_end'] = 1
                 for arc in item[2]:
-                    network[arc][9] = 1
+                    network[arc]['enabled'] = 1
         
         else:
             break  # exit the loop once nothing is added
@@ -244,18 +220,15 @@ def spatialise(network, nodes, clusters):
     """
 
     # prepare nodes and join with original clusters gdf
-    nodes_df = pd.DataFrame(columns=['index', 'X', 'Y', 'area_m2', 'pop_sum', 'conn_start', 'conn_end',
-                                      'og_cost', 'arcs'], data=nodes)
-    nodes_df = nodes_df[['index', 'conn_end', 'og_cost']]
+    nodes_df = pd.DataFrame(nodes)
+    nodes_df = nodes_df[['conn_end', 'og_cost']]
     clusters_joined = clusters.merge(nodes_df, how='left', left_index=True, right_index=True)
+    clusters_joined = clusters_joined.to_crs(epsg=4326)
 
     # do the same for the network array
-    network_df = pd.DataFrame(columns=['index', 'xs', 'ys', 'xe', 'ye', 'node_start', 'node_end',
-                                       'existing', 'length', 'enabled'], data=network)
-    network_geometry = [LineString([(arc[1], arc[2]), (arc[3], arc[4])]) for arc in network]
+    network_df = pd.DataFrame(network)
+    network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
     network_gdf = gpd.GeoDataFrame(network_df, crs=clusters.crs, geometry=network_geometry)
-
-    clusters_joined = clusters_joined.to_crs(epsg=4326)
     network_gdf = network_gdf.to_crs(epsg=4326)
 
     return network_gdf, clusters_joined
