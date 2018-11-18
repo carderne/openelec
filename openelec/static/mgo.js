@@ -5,10 +5,7 @@
  */
 
 // TODO get data directly from OSM
-// TODO Reimplement sidebar with leaflet-sidebar
-// TODO Click on vilage marker takes user to village view (ditch drop down?)
-// TODO 'Choose generator site' message overlay on map
-// TODO add colorbar?
+// TODO Reimplement sidebar with leaflet-sidebar?
 
 // Main Leaflet map container
 var map = L.map("main-map").setView([-5.94, 34.5], 7);
@@ -20,15 +17,10 @@ var basemap = L.tileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/li
     maxZoom: 19
 });
 basemap.addTo(map);
-map.on('click', addGenLocation);
 
 // Some variables needed at global level
 var villages;
-var genLat;
-var genLng;
-
-var hasGenLocation = false;
-var readyForGen = false;
+var currentVillage;
 
 var resultsTable;
 var networkLayer;
@@ -40,22 +32,27 @@ $(function() {
     $.ajax({
         url: "/_get_village_list",
         success: function(data) {
-
             villages = data.villages
-
-            // update selector list with villages
-            var select = document.getElementById("village");
-            for (var row in data.villages) {
-                var option = document.createElement("option");
-                option.text = row;
-                option.value = row;
-                select.add(option); 
-            }
-
-           addPoints(data.villages)
+            addPoints(data.villages)
         }
     });
+
+    document.getElementById("param-head").innerHTML = "Input parameters";
+    var table = document.getElementById("param-table");
+    table.insertRow(-1).innerHTML = '<td>Min house size <small>(m<sup>2</sup>)</small></td><td><input type="text" name="min-area" value="70" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Demand <small>(kWh/pp/mon)</small></td><td><input type="text" name="demand" value="6" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Tariff <small>($/kWh)</small></td><td><input type="text" name="tariff" value="0.2" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Generator cost <small>($/kW)</small></td><td><input type="text" name="gen-cost" value="1000" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Wire cost <small>($/m)</small></td><td><input type="text" name="cost-wire" value="10" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Connection cost <small>($/house)</small></td><td><input type="text" name="cost-connection" value="100" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Annual Opex <small>(% of Capex)</small></td><td><input type="text" name="opex-ratio" value="1" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Project lifetime <small>(years)</small></td><td><input type="text" name="years" value="10" size="5"></td>'
+    table.insertRow(-1).innerHTML = '<td>Discount rate <small>(%)</small></td><td><input type="text" name="discount-rate" value="6" size="5"></td>'
+
+    var run = document.getElementById("run")
+    run.innerHTML = '<input type="submit" name="run" value="Run model" onclick="runModel()">'
 });
+
 
 /**
  * Add the given list of points to the map.
@@ -64,7 +61,9 @@ function addPoints(data) {
     pointGroupLayer = L.layerGroup().addTo(map);
     for(var row in data) {
         var marker = L.marker([data[row].lat, data[row].lng]).addTo(pointGroupLayer);
-        marker.bindPopup(row);
+        //marker.bindPopup(row);
+        marker.bindTooltip(row);
+        marker.on('click', showVillage(row));
     }
 }
 
@@ -72,57 +71,15 @@ function addPoints(data) {
 /**
  * Called when a village is selected.
  * Move map to selected village and prompt to select generator location.
+ * Uses a closure so that the 'click' even can pass villageName
  */
-function showVillage() {
-    name = $('select[name="village"]').val()
+function showVillage(villageName) {
+    return function(e) {
+        lat = villages[villageName].lat
+        lng = villages[villageName].lng
+        map.setView([lat, lng], 17);
 
-    lat = villages[name].lat
-    lng = villages[name].lng
-    map.setView([lat, lng], 17);
-    document.getElementById("choose-gen").innerHTML = "Click desired generator location";
-
-    readyForGen = true;
-}
-
-
-/**
- * Functionality to add generator to selected location.
- * Once a generator is chosen, the funcationality is turned off
- * and inputs are provided for user to enter economic parameters.
- */
-function addGenLocation(e) {
-    if (readyForGen && !hasGenLocation) {
-        hasGenLocation = true;
-
-        genLat = e.latlng.lat.toFixed(4);
-        genLng = e.latlng.lng.toFixed(4);
-
-        var marker = L.marker([genLat, genLng]).addTo(map);
-        marker.bindPopup("Generator location");
-        var icon = L.AwesomeMarkers.icon({
-            icon: "bolt",
-            iconColor: "white",
-            markerColor: "green",
-            prefix: "fa",
-        });
-        marker.setIcon(icon);
-
-        document.getElementById("choose-gen").innerHTML = "Generator site chosen";
-        document.getElementById("param-head").innerHTML = "Choose parameters";
-
-        var table = document.getElementById("param-table");
-        table.insertRow(-1).innerHTML = '<td>Min house size <small>(m<sup>2</sup>)</small></td><td><input type="text" name="min-area" value="70" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Demand <small>(kWh/pp/mon)</small></td><td><input type="text" name="demand" value="6" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Tariff <small>($/kWh)</small></td><td><input type="text" name="tariff" value="0.2" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Generator cost <small>($/kW)</small></td><td><input type="text" name="gen-cost" value="1000" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Wire cost <small>($/m)</small></td><td><input type="text" name="cost-wire" value="10" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Connection cost <small>($/house)</small></td><td><input type="text" name="cost-connection" value="100" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Annual Opex <small>(% of Capex)</small></td><td><input type="text" name="opex-ratio" value="1" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Project lifetime <small>(years)</small></td><td><input type="text" name="years" value="10" size="5"></td>'
-        table.insertRow(-1).innerHTML = '<td>Discount rate <small>(%)</small></td><td><input type="text" name="discount-rate" value="6" size="5"></td>'
-
-        var run = document.getElementById("run")
-        run.innerHTML = '<input type="submit" name="run" value="Run (and be patient)" onclick="runModel()">'
+        currentVillage = villageName;
     }
 }
 
@@ -134,9 +91,7 @@ function runModel() {
     $.ajax({
         url: "/_run_model",
         data: {
-            name: $('select[name="village"]').val(),
-            gen_lat: genLat,
-            gen_lng: genLng,
+            name: currentVillage,
             min_area: $('input[name="min-area"]').val(),
             demand: $('input[name="demand"]').val(),
             tariff: $('input[name="tariff"]').val(),
@@ -161,7 +116,7 @@ function updateWithResults(data) {
     var buildings = data.buildings;
     var results = data.results;
 
-    document.getElementById("param-head").innerHTML = "Check your results";
+    document.getElementById("results-head").innerHTML = "Check your results";
 
     if (resultsTable) {
         resultsTable.innerHTML = ""
