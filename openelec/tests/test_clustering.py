@@ -1,4 +1,5 @@
-from electrificationplanner import clustering
+from openelec import clustering
+
 import numpy as np
 from affine import Affine
 import rasterio

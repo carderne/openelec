@@ -1,10 +1,10 @@
-from mgo import mgo
+from openelec import mgo
 from pathlib import Path
 import geopandas as gpd
 from collections import defaultdict
 
 
-TEST_DATA = Path('mgo/uploads')
+TEST_DATA = Path('openelec/uploads')
 BUILDINGS = TEST_DATA / 'Nakiu.geojson'
 
 def test_clip_raster():

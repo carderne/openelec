@@ -5,9 +5,7 @@ import geopandas as gpd
 from shapely.geometry import LineString
 from pathlib import Path
 
-import sys
-sys.path.insert(0, '../minigrid-optimiser')
-from mgo import mgo
+from openelec import mgo
 
 
 
