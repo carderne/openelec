@@ -32,9 +32,7 @@ def run_model():
                                    min_area=request.args.get('min_area', 0, type=int))
 
     # create the network and nodes for this village
-    network, nodes = mgo.create_network(buildings,
-                                        gen_lat=request.args.get('gen_lat', 0, type=float),
-                                        gen_lng=request.args.get('gen_lng', 0, type=float))
+    network, nodes = mgo.create_network(buildings)
 
     # run model and get summary results
     results, network, nodes = mgo.run_model(network, nodes,

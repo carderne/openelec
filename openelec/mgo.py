@@ -76,6 +76,10 @@ def load_buildings(village, file_dir, min_area):
     buildings_projected["area"] = buildings_projected['geometry'].area
     buildings_projected = buildings_projected.loc[buildings_projected['area'] > min_area]
 
+    # Sort with largest building first so that if no gen point specified,
+    # the largest building will be treated as the 'center' of the network
+    buildings_projected = buildings_projected.sort_values('area', ascending=False)
+
     # project back to WGS84
     buildings = buildings_projected.to_crs(epsg=4326)
     buildings = buildings.reset_index().drop(columns=['index'])
@@ -83,7 +87,7 @@ def load_buildings(village, file_dir, min_area):
     return buildings
 
 
-def create_network(buildings, gen_lat, gen_lng):
+def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
     """
     Create a network of lines and nodes from the buildings file,
     using a Minimum spanning tree to generate the connecting
@@ -93,39 +97,22 @@ def create_network(buildings, gen_lat, gen_lng):
     ----------
     buildings: geopandas.GeoDataFrame
         All of the buildings with attribues and geometries.
-    gen_lat: float
+    specify_gen: boolean, optional, default False
+    gen_lat: float, optional
         Latitude of PV generator.
-    gen_lng: float
+    gen_lng: float, optional
         Longitude of PV generator.
 
     Returns
     -------
-    network: list of lists
-        Each list within the list contains a single network arc, with the following attributes:
-        0   index
-        1   xs
-        2   ys
-        3   xe
-        4   ye
-        5   node index first point
-        6   node index last point
-        7   whether this arc is directed (0 or 1)
-        8   arc length
-        9   whether enabled (default to 1)
-    nodes: list of list
-        Each list within contains a single building node, with the PV point at index 0.
-        Each elementhas the following attributes:
-        0   index
-        1   x
-        2   y
-        3   area_m2
-        4   marginal distance
-        5   total distance
-        6   connected (default to 0)
-        7.. connected arc indices
+    network: list of dicts
+        Each dict within contains a single network arc, with the following attributes:
+        index, xs, ys, xe, ye, ns, ne, dir, len, enabled
+    nodes: list of dicts
+        Each dict within contains a single building node, with the main point at index 0.
+        Each element has the following attributes:
+        index, x, y, area, marg_dist, tot_dist, conn, arcs
     """
-    gen_lat = float(gen_lat)
-    gen_lng = float(gen_lng)
 
     buildings_projected = buildings.to_crs(EPSG102022)
 
@@ -138,11 +125,14 @@ def create_network(buildings, gen_lat, gen_lng):
     # before we start analysing further and deciding on the optimum network.
     df = pd.DataFrame(buildings_points)
 
-    pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
-    pv_point_projected = pv_point.copy()
-    pv_point_projected = pv_point_projected.to_crs(EPSG102022)
-    pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
-    df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
+    if specify_gen:
+      gen_lat = float(gen_lat)
+      gen_lng = float(gen_lng)
+      pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
+      pv_point_projected = pv_point.to_crs(EPSG102022)
+      pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
+      df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
+
     points = df[['X', 'Y']].as_matrix()
 
     T_x, T_y = get_spanning_tree(points)
@@ -152,10 +142,6 @@ def create_network(buildings, gen_lat, gen_lng):
     # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
     # astype(int) doesn't round - it just chops off the decimals
     nodes_list = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
-    #for node in nodes:
-        # add default 0's for marg_dist, tot_dist and connected
-    #    node.extend([0, 0, 0])
-
     nodes = []
     for n in nodes_list:
         nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'marg_dist': 0, 'tot_dist': 0, 'conn': 0, 'arcs': []})
@@ -528,22 +514,17 @@ def network_to_spatial(buildings, network, nodes):
     buildings_gdf: geopandas.GeoDataFrame
         Resultant buildings filtered to only include those connected.
     """
-    # ### And then do a spatial join to get the results back into a polygon shapefile
+    # And then do a spatial join to get the results back into a polygon shapefile
     # join the resultant points with the orignal buildings_projected
     # create geometries from X and Y points and create gdf
-    #nodes_for_df = [node[0:7] for node in nodes] # drop the extra columsn that will confuse a df
-    #nodes_df = pd.DataFrame(columns=['index', 'X', 'Y', 'area', 'marg_dist', 'tot_dist',
-    #                                  'connected'], data=nodes_for_df)
 
-    nodes_df = pd.DataFrame(nodes).drop(columns=['area', 'arcs'])
-    nodes_df.index = nodes_df.index - 1  # to get rid of pv point
-    #nodes_df = nodes_df.drop(columns=['area'])  # otherwise left and right in join have area in them
+    nodes_df = pd.DataFrame(nodes)
+    if nodes_df.loc[0, 'area'] == 0:
+        nodes_df.index = nodes_df.index - 1  # to get rid of pv point
+    nodes_df = nodes_df.drop(columns=['area', 'arcs'])
     buildings_gdf = buildings.merge(nodes_df, left_index=True, right_index=True)
     buildings_gdf = buildings_gdf.loc[buildings_gdf['conn'] == 1]
 
-    # do the same for the network array
-    #network_df = pd.DataFrame(columns=['idx', 'xs', 'ys', 'xe', 'ye', 'node_start', 'node_end',
-    #                                   'directed', 'length', 'enabled'], data=network)
     network_df = pd.DataFrame(network)
     network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
     network_gdf = gpd.GeoDataFrame(network_df, crs=EPSG102022, geometry=network_geometry)
