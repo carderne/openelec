@@ -24,19 +24,6 @@ Provides model features through a simple API, as well as a basic Flask web app.
 
 See the blog post here for a general overview of the model development (probably out of date): [https://rdrn.me/flask-optimize-minigrid/](https://rdrn.me/flask-optimize-minigrid/)
 
-Examples
---------------
-
-**Basic API**
-
-Have a look at the example Jupyter Notebook for a quick overview of the main API features:
-
-[minigrid-optimiser.ipynb](http://nbviewer.jupyter.org/github/carderne/minigrid-optimiser/blob/master/minigrid-optimiser.ipynb)
-
-**Web App usage**
-
-[![Web App demo](https://thumbs.gfycat.com/FirstWiltedGreyhounddog-size_restricted.gif)](https://gfycat.com/CarefreeRemarkableAardwolf)
-
 Installation
 --------
 
@@ -57,7 +44,7 @@ minigrid-optimiser requires Python >= 3.5 with the following packages installed:
 Downloads or clone the repository:
 
 ```
-git clone https://github.com/carderne/minigrid-optimiser.git
+git clone https://github.com/carderne/openelec.git
 ```
 
 Then ``cd`` into the directory, and install the required packages into a virtual environment:
@@ -66,15 +53,4 @@ Then ``cd`` into the directory, and install the required packages into a virtual
 pip install -r requirements.txt
 ```
 
-Then run ``jupyter notebook`` and open ``minigrid-optimiser.ipynb`` to go over the main model usage and API.
-
-**Web App**
-
-To use the web app, run the following from the main directory:
-
-```
-cd mgo
-python mgo_app.py
-```
-
-and navigate to http://127.0.0.1:5000/ in a browser to access the web app.
+Then run ``jupyter notebook`` and open ``minigrid-optimiser.ipynb``  or `electrify.ipynb` to go over the main model usage and API.
