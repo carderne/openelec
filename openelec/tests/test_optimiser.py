@@ -4,7 +4,7 @@ import geopandas as gpd
 from collections import defaultdict
 
 
-TEST_DATA = Path('openelec/uploads')
+TEST_DATA = Path('test_data')
 BUILDINGS = TEST_DATA / 'Nakiu.geojson'
 
 def test_clip_raster():
