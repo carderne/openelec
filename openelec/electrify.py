@@ -8,7 +8,6 @@ from pathlib import Path
 from openelec import mgo
 
 
-
 def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
     """
 
@@ -31,7 +30,7 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
 def create_network(clusters):
     """
     We then take all the clusters and calculate the optimum network that connects them all together.
-    The ML model returns T_x and T_y containing the start and end points of each new arc created
+    The ML model returns T_x and T_y containing the start and end points of each new arc created.
     """
 
     clusters_points = clusters.copy()

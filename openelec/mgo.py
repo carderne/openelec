@@ -125,6 +125,9 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
     # before we start analysing further and deciding on the optimum network.
     df = pd.DataFrame(buildings_points)
 
+    # If generator location not specified, the model defaults to using building index 0 as the 'main' point
+    # This is the largest, due to sort by area in load_buildings()
+    # TODO Add option to use center of gravity instead?
     if specify_gen:
       gen_lat = float(gen_lat)
       gen_lng = float(gen_lng)

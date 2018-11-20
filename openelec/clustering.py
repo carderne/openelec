@@ -20,7 +20,7 @@ from rasterio.features import shapes, rasterize
 from rasterstats import zonal_stats
 
 
-def clip_raster(raster, boundary, boundary_layer='gadm36_UGA_0'):
+def clip_raster(raster, boundary, boundary_layer=None):
 	"""
 	Clip the raster to the given administrative boundary.
 
