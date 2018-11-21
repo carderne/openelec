@@ -165,6 +165,7 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     
     # And then add the polygon's area back to its attributes
     clusters["area"] = clusters['geometry'].area
+    clusters = clusters.to_crs(epsg = 4326)
 
     return clusters
 
@@ -196,12 +197,18 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None):
     if isinstance(raster, Path):
         raster = str(raster)
     if isinstance(raster, str):
-        pop_sums = zonal_stats(clusters, raster, stats=operation)
+        # rasterstats doesn't check for same CRS
+        # Throws memory error if don't ensure they are same
+        crs = rasterio.open(raster).crs
+        clusters_proj = clusters.to_crs(crs)
+        stats = zonal_stats(clusters, raster, stats=operation, nodata=0)
 
     else:
-        pop_sums = zonal_stats(clusters, raster, affine=affine, stats=operation, nodata=0)
+        stats = zonal_stats(clusters, raster, affine=affine, stats=operation, nodata=0)
 
-    clusters[col_name] = [x[operation] for x in pop_sums]
+    clusters[col_name] = [x[operation] for x in stats]
+
+    clusters_proj = clusters_proj.to_crs(clusters.crs)
 
     return clusters
 
