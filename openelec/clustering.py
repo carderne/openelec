@@ -21,243 +21,255 @@ from rasterstats import zonal_stats
 
 
 def clip_raster(raster, boundary, boundary_layer=None):
-	"""
-	Clip the raster to the given administrative boundary.
+    """
+    Clip the raster to the given administrative boundary.
 
-	Parameters
-	----------
-	raster: string, pathlib.Path or rasterio.io.DataSetReader
-		Location of or already opened raster.
-	boundary: string, pathlib.Path or geopandas.GeoDataFrame
-		The poylgon by which to clip the raster.
-	boundary_layer: string, optional
-		For multi-layer files (like GeoPackage), specify the layer to be used.
+    Parameters
+    ----------
+    raster: string, pathlib.Path or rasterio.io.DataSetReader
+        Location of or already opened raster.
+    boundary: string, pathlib.Path or geopandas.GeoDataFrame
+        The poylgon by which to clip the raster.
+    boundary_layer: string, optional
+        For multi-layer files (like GeoPackage), specify the layer to be used.
 
 
-	Returns
-	-------
-	tuple
-		Three elements:
-			clipped: numpy.ndarray
-				Contents of clipped raster.
-			affine: affine.Affine()
-				Information for mapping pixel coordinates
-				to a coordinate system.
-			crs: dict
-				Dict of the form {'init': 'epsg:4326'} defining the coordinate
-				reference system of the raster.
+    Returns
+    -------
+    tuple
+        Three elements:
+            clipped: numpy.ndarray
+                Contents of clipped raster.
+            affine: affine.Affine()
+                Information for mapping pixel coordinates
+                to a coordinate system.
+            crs: dict
+                Dict of the form {'init': 'epsg:4326'} defining the coordinate
+                reference system of the raster.
 
-	"""
+    """
 
-	if isinstance(raster, Path):
-		raster = str(raster)
-	if isinstance(raster, str):
-		raster = rasterio.open(raster)
+    if isinstance(raster, Path):
+        raster = str(raster)
+    if isinstance(raster, str):
+        raster = rasterio.open(raster)
 
-	crs = raster.crs
-	
-	if isinstance(boundary, Path):
-		boundary = str(boundary)
-	if isinstance(boundary, str):
-		if '.gpkg' in boundary:
-			driver = 'GPKG'
-		else:
-			driver = None  # default to shapefile
-			boundary_layer = ''  # because shapefiles have no layers
-	
-		boundary = gpd.read_file(boundary, layer=boundary_layer, driver=driver)
+    crs = raster.crs
+    
+    if isinstance(boundary, Path):
+        boundary = str(boundary)
+    if isinstance(boundary, str):
+        if '.gpkg' in boundary:
+            driver = 'GPKG'
+        else:
+            driver = None  # default to shapefile
+            boundary_layer = ''  # because shapefiles have no layers
+    
+        boundary = gpd.read_file(boundary, layer=boundary_layer, driver=driver)
 
-	boundary = boundary.to_crs(crs=raster.crs)
-	coords = [json.loads(boundary.to_json())['features'][0]['geometry']]
+    boundary = boundary.to_crs(crs=raster.crs)
+    coords = [json.loads(boundary.to_json())['features'][0]['geometry']]
 
-	# mask/clip the raster using rasterio.mask
-	clipped, affine = mask(dataset=raster, shapes=coords, crop=True)
+    # mask/clip the raster using rasterio.mask
+    clipped, affine = mask(dataset=raster, shapes=coords, crop=True)
 
-	return clipped, affine, crs
+    return clipped, affine, crs
 
 
 def create_clusters(raster, affine, crs):
-	"""
-	Create a polygon GeoDataFrame from the given raster
+    """
+    Create a polygon GeoDataFrame from the given raster
 
-	Parameters
-	----------
-	raster: numpy.ndarray
-		The raster data to use.
-	affine: affine.Affine()
-		Raster pixel mapping information.
-	crs: dict
-		Dict of the form {'init': 'epsg:4326'} defining the coordinate
-		reference system to use.
+    Parameters
+    ----------
+    raster: numpy.ndarray
+        The raster data to use.
+    affine: affine.Affine()
+        Raster pixel mapping information.
+    crs: dict
+        Dict of the form {'init': 'epsg:4326'} defining the coordinate
+        reference system to use.
 
-	Returns
-	-------
-	clusters: geopandas.GeoDataFrame
-		A GeoDataFrame with integer index and two columns:
-		geometry contains the Shapely polygon representations
-		raster_val contains the values from the raster
+    Returns
+    -------
+    clusters: geopandas.GeoDataFrame
+        A GeoDataFrame with integer index and two columns:
+        geometry contains the Shapely polygon representations
+        raster_val contains the values from the raster
 
-	"""
+    """
 
 
-	geoms = list(({'properties': {'raster_val': v}, 'geometry': s} 
-	              for i, (s, v)
-	              in enumerate(shapes(raster, mask=None, transform=affine))))
+    geoms = list(({'properties': {'raster_val': v}, 'geometry': s} 
+                  for i, (s, v)
+                  in enumerate(shapes(raster, mask=None, transform=affine))))
 
-	clusters = gpd.GeoDataFrame.from_features(geoms)
-	clusters.crs = crs
+    clusters = gpd.GeoDataFrame.from_features(geoms)
+    clusters.crs = crs
 
-	return clusters
+    return clusters
 
 
 # TODO Could instead filter at the raster stage?
 def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, buffer_amount=150):
-	"""
-	The vectors created by create_clusters() are a single square for each raster pixel.
-	This function does the follows:
-	- Remove overly large clusters, caused by defects in the input raster.
-	- Remove clusters with population below a certain threshold.
-	- Buffer the remaining clusters and merge those that overlap.
+    """
+    The vectors created by create_clusters() are a single square for each raster pixel.
+    This function does the follows:
+    - Remove overly large clusters, caused by defects in the input raster.
+    - Remove clusters with population below a certain threshold.
+    - Buffer the remaining clusters and merge those that overlap.
 
-	Parameters
-	----------
-	clusters: geopandas.GeoDataFrame
-		The unprocessed clusters created by create_clusters()
-	max_block_size_multi: int, optional
-		Remove clusters that are more than this many times average size. Default 5.
-	min_block_pop: int, optional
-		Remove clusters with below this population. Default 50.
-	buffer_amount: int, optional
-		Distance in metres by which to buffer the clusters before merging. Default 150.
+    Parameters
+    ----------
+    clusters: geopandas.GeoDataFrame
+        The unprocessed clusters created by create_clusters()
+    max_block_size_multi: int, optional
+        Remove clusters that are more than this many times average size. Default 5.
+    min_block_pop: int, optional
+        Remove clusters with below this population. Default 50.
+    buffer_amount: int, optional
+        Distance in metres by which to buffer the clusters before merging. Default 150.
 
-	Returns
-	-------
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
-	"""
+    Returns
+    -------
+    clusters: geopandas.GeoDataFrame
+        The processed clusters.
+    """
 
-	# remove blocks that are too big (basically artifacts)
-	clusters['area_m2'] = clusters.geometry.area
-	clusters = clusters[clusters['area_m2'] < clusters['area_m2'].mean() * max_block_size_multi]
+    # remove blocks that are too big (basically artifacts)
+    clusters['area'] = clusters.geometry.area
+    clusters = clusters[clusters['area'] < clusters['area'].mean() * max_block_size_multi]
 
-	# remove blocks with too few people
-	clusters = clusters[clusters['raster_val'] > min_block_pop]
+    # remove blocks with too few people
+    clusters = clusters[clusters['raster_val'] > min_block_pop]
 
-	# buffer outwards so that nearby blocks will overlap
-	clusters['geometry'] = clusters.geometry.buffer(buffer_amount)
+    # buffer outwards so that nearby blocks will overlap
+    clusters['geometry'] = clusters.geometry.buffer(buffer_amount)
 
-	# and dissolve the thousands of blocks into a single layer (with no attributes!)
-	clusters['same'] = 1
-	clusters = clusters.dissolve(by='same')
+    # and dissolve the thousands of blocks into a single layer (with no attributes!)
+    clusters['same'] = 1
+    clusters = clusters.dissolve(by='same')
 
-	# To get our attributes back, we convert the dissolves polygon into singleparts
-	# This means each contiguous bubble becomes its own polygon and can store its own attributes
-	crs = clusters.crs
-	clusters = clusters.explode()
-	clusters = clusters.reset_index()
+    # To get our attributes back, we convert the dissolves polygon into singleparts
+    # This means each contiguous bubble becomes its own polygon and can store its own attributes
+    crs = clusters.crs
+    clusters = clusters.explode()
+    clusters = clusters.reset_index()
 
-	# no longer needed in GeoPandas >= 0.4.0
-	# clusters['geometry'] = clusters[0]
-	# clusters = gpd.GeoDataFrame(clusters)
-	# clusters.crs = crs
+    # no longer needed in GeoPandas >= 0.4.0
+    # clusters['geometry'] = clusters[0]
+    # clusters = gpd.GeoDataFrame(clusters)
+    # clusters.crs = crs
 
-	clusters = clusters.drop(columns=['same', 'level_1', 'raster_val'])  # raster_val is no longer meaningful
-	
+    clusters = clusters.drop(columns=['same', 'level_1', 'raster_val'])  # raster_val is no longer meaningful
+    
+    # And then add the polygon's area back to its attributes
+    clusters["area"] = clusters['geometry'].area
 
-	# And then add the polygon's area back to its attributes
-	clusters["area_m2"] = clusters['geometry'].area
-
-	return clusters
-
-
-def cluster_pops(clusters, raster, affine=None):
-	"""
-	The filter_merge_clusters() process loses the underlying raster values.
-	So we need to use rasterstats.zonal_stats() to get it back.
-
-	Parameters
-	----------
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
-	raster: str, pathlib.Path or numpy.ndarray
-		Either a path to the raster, or an already imported numpy.ndarray with the data.
-	affine: affine.Affine(), optional
-		If a numpy ndarray is passed above, the affine is also needed.
-
-	Returns
-	-------
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
-	"""
-	if isinstance(raster, Path):
-		raster = str(raster)
-	if isinstance(raster, str):
-		pop_sums = zonal_stats(clusters, raster, stats='sum')
-
-	else:
-		pop_sums = zonal_stats(clusters, raster, affine=affine, stats='sum', nodata=0)
-
-	clusters['pop_sum'] = [x['sum'] for x in pop_sums]
-
-	return clusters
+    return clusters
 
 
-def cluster_grid_distance(clusters, grid, shape, affine):
-	"""
-	Use a vector containing grid infrastructure to determine
-	each cluster's distance from the grid.
+def add_raster_layer(clusters, raster, operation, col_name, affine=None):
+    """
+    The filter_merge_clusters() process loses the underlying raster values.
+    So we need to use rasterstats.zonal_stats() to get it back.
 
-	Parameters
-	----------
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
-	grid: str, pathlib.Path or geopandas.GeoDataFrame
-		Path to or already imported grid dataframe.
-	shape: tuple
-		Tuple of two integers representing the shape of the data
-		for rasterizing grid. Sould match the clipped raster.
-	affine: affine.Affine()
-		As above, should match the clipped raster.
+    Parameters
+    ----------
+    clusters: geopandas.GeoDataFrame
+        The processed clusters.
+    raster: str, pathlib.Path or numpy.ndarray
+        Either a path to the raster, or an already imported numpy.ndarray with the data.
+    operation: str
+        The operation to perform when extracting the raster data.
+        Either 'sum' or 'mean'
+    col_name: str
+        Name of the column to add.
+    affine: affine.Affine(), optional
+        If a numpy ndarray is passed above, the affine is also needed.
 
-	Returns
-	-------
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
+    Returns
+    -------
+    clusters: geopandas.GeoDataFrame
+        The processed clusters with new column.
+    """
+    if isinstance(raster, Path):
+        raster = str(raster)
+    if isinstance(raster, str):
+        pop_sums = zonal_stats(clusters, raster, stats=operation)
 
-	"""
+    else:
+        pop_sums = zonal_stats(clusters, raster, affine=affine, stats=operation, nodata=0)
 
-	if isinstance(grid, Path):
-		grid = str(grid)
-	if isinstance(grid, str):
-		grid = gpd.read_file(grid)
+    clusters[col_name] = [x[operation] for x in pop_sums]
 
-	grid = grid.to_crs(crs=clusters.crs)
-	grid = grid.loc[grid['geometry'].length > 0]
+    return clusters
 
-	grid_raster = rasterize(grid.geometry, out_shape=shape, fill=1,
-	                        default_value=0, all_touched=True, transform=affine)
-	dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
 
-	dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1000)
-	clusters['grid_dist'] = [x['min'] for x in dists]
+def add_vector_layer(clusters, vector, operation, col_name, shape, affine):
+    """
+    Use a vector containing grid infrastructure to determine
+    each cluster's distance from the grid.
 
-	return clusters
+    Parameters
+    ----------
+    clusters: geopandas.GeoDataFrame
+        The processed clusters.
+    vector: str, pathlib.Path or geopandas.GeoDataFrame
+        Path to or already imported grid dataframe.
+    operation: str
+        Operation to perform in extracting vector data.
+        Currently only 'distance' supported.
+    shape: tuple
+        Tuple of two integers representing the shape of the data
+        for rasterizing grid. Sould match the clipped raster.
+    affine: affine.Affine()
+        As above, should match the clipped raster.
+
+    Returns
+    -------
+    clusters: geopandas.GeoDataFrame
+        The processed clusters with new column.
+
+    """
+
+    if isinstance(vector, Path):
+        vector = str(vector)
+    if isinstance(vector, str):
+        vector = gpd.read_file(vector)
+
+    vector = vector.to_crs(crs=clusters.crs)
+
+    if operation == 'distance':
+        vector = vector.loc[vector['geometry'].length > 0]
+
+        grid_raster = rasterize(vector.geometry, out_shape=shape, fill=1,
+                                default_value=0, all_touched=True, transform=affine)
+        dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
+
+        dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1000)
+        clusters[col_name] = [x['min'] for x in dists]
+
+        return clusters
+
+    else:
+        raise ValueError('Currently only "distance" is supported as an argument for operations')
 
 def save_clusters(clusters, out_path):
-	"""
-	Convert to EPSG:4326 and save to the specified file.
-	clusters: geopandas.GeoDataFrame
-		The processed clusters.
-	out_path: str or pathlib.Path
-		Where to save the clusters file.
-	"""
+    """
+    Convert to EPSG:4326 and save to the specified file.
+    clusters: geopandas.GeoDataFrame
+        The processed clusters.
+    out_path: str or pathlib.Path
+        Where to save the clusters file.
+    """
 
-	if isinstance(out_path, Path):
-		out_path = str(out_path)
-	if '.gpkg' in out_path:
-		driver = 'GPKG'
-	else:
-		driver = None
+    if isinstance(out_path, Path):
+        out_path = str(out_path)
+    if '.gpkg' in out_path:
+        driver = 'GPKG'
+    else:
+        driver = None
 
-	clusters = clusters.to_crs(epsg=4326)
-	clusters.to_file(out_path, driver=driver)
+    clusters = clusters.to_crs(epsg=4326)
+    clusters.to_file(out_path, driver=driver)
