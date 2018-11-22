@@ -8,6 +8,18 @@ from pathlib import Path
 from openelec import mgo
 
 
+def country_centroid(file_path):
+    """
+
+    """
+
+    gdf = gpd.read_file(file_path)
+    lng = gdf.geometry.centroid.x.mean()
+    lat = gdf.geometry.centroid.y.mean()
+
+    return lat, lng
+
+
 def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
     """
 
@@ -20,8 +32,8 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
 
     clusters['conn_start'] = 0
     clusters.loc[clusters['grid_dist'] <= grid_dist_connected, 'conn_start'] = 1
-    clusters = clusters.loc[clusters['pop_sum'] > minimum_pop]
-    clusters = clusters.sort_values('pop_sum', ascending=False)  # so that biggest (and thus connected) city gets index=0
+    clusters = clusters.loc[clusters['pop'] > 0]
+    clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
     clusters = clusters.reset_index().drop(columns=['index'])
 
     return clusters
@@ -50,7 +62,7 @@ def create_network(clusters):
     df['conn_end'] = df['conn_start']
     df['off_grid_cost'] = 0
 
-    nodes_list = df[['X', 'Y', 'area_m2', 'pop_sum', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
+    nodes_list = df[['X', 'Y', 'area', 'pop', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
     nodes = []
     # add an empty list at position 8 for connected arc indices
     for n in nodes_list:
@@ -230,4 +242,8 @@ def spatialise(network, nodes, clusters):
     network_gdf = gpd.GeoDataFrame(network_df, crs=clusters.crs, geometry=network_geometry)
     network_gdf = network_gdf.to_crs(epsg=4326)
 
-    return network_gdf, clusters_joined
+    network_new = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
+    clusters_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 0]
+    clusters_og = clusters_joined.loc[clusters_joined['conn_end'] == 0]
+
+    return network_new, clusters_conn, clusters_og

@@ -170,7 +170,7 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     return clusters
 
 
-def add_raster_layer(clusters, raster, operation, col_name, affine=None):
+def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None):
     """
     The filter_merge_clusters() process loses the underlying raster values.
     So we need to use rasterstats.zonal_stats() to get it back.
@@ -188,6 +188,8 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None):
         Name of the column to add.
     affine: affine.Affine(), optional
         If a numpy ndarray is passed above, the affine is also needed.
+    crs: proj.crs, optional
+        Override raster's reported crs
 
     Returns
     -------
@@ -199,21 +201,23 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None):
     if isinstance(raster, str):
         # rasterstats doesn't check for same CRS
         # Throws memory error if don't ensure they are same
-        crs = rasterio.open(raster).crs
+        if not crs:
+            crs = rasterio.open(raster).crs
         clusters_proj = clusters.to_crs(crs)
-        stats = zonal_stats(clusters, raster, stats=operation, nodata=0)
+        stats = zonal_stats(clusters_proj, raster, stats=operation, nodata=0)
+
+        clusters_proj[col_name] = [x[operation] for x in stats]
+
+        clusters = clusters_proj.to_crs(clusters.crs)
+
+        return clusters
 
     else:
-        stats = zonal_stats(clusters, raster, affine=affine, stats=operation, nodata=0)
-
-    clusters[col_name] = [x[operation] for x in stats]
-
-    clusters_proj = clusters_proj.to_crs(clusters.crs)
-
-    return clusters
+        raise ValueException('Only implemented for path input')
+        #stats = zonal_stats(clusters_proj, raster, affine=affine, stats=operation, nodata=0)
 
 
-def add_vector_layer(clusters, vector, operation, col_name, shape, affine):
+def add_vector_layer(clusters, vector, operation, col_name, shape, affine, raster_crs):
     """
     Use a vector containing grid infrastructure to determine
     each cluster's distance from the grid.
@@ -245,7 +249,8 @@ def add_vector_layer(clusters, vector, operation, col_name, shape, affine):
     if isinstance(vector, str):
         vector = gpd.read_file(vector)
 
-    vector = vector.to_crs(crs=clusters.crs)
+    vector = vector.to_crs(crs=raster_crs)
+    clusters = clusters.to_crs(crs=raster_crs)
 
     if operation == 'distance':
         vector = vector.loc[vector['geometry'].length > 0]
@@ -254,10 +259,10 @@ def add_vector_layer(clusters, vector, operation, col_name, shape, affine):
                                 default_value=0, all_touched=True, transform=affine)
         dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
 
-        dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1000)
+        dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1e9)
         clusters[col_name] = [x['min'] for x in dists]
 
-        return clusters
+        return clusters.to_crs(epsg=4326)
 
     else:
         raise ValueError('Currently only "distance" is supported as an argument for operations')
