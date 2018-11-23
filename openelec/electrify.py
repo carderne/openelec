@@ -243,7 +243,8 @@ def spatialise(network, nodes, clusters):
     network_gdf = network_gdf.to_crs(epsg=4326)
 
     network_new = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
-    clusters_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 0]
-    clusters_og = clusters_joined.loc[clusters_joined['conn_end'] == 0]
+    orig_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 1]
+    new_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 0]
+    og = clusters_joined.loc[clusters_joined['conn_end'] == 0]
 
-    return network_new, clusters_conn, clusters_og
+    return network_new, orig_conn, new_conn, og
