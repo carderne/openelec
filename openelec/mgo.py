@@ -2,6 +2,8 @@
 minigrid-optimiser
 Tool designed to take a small village and estimate the optimum connections, based on a PV installation location and economic data.
 """
+
+import json
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
@@ -47,14 +49,14 @@ def village_centroids(file_dir):
     return villages
 
 
-def load_buildings(village, file_dir, min_area):
+def load_buildings(village, file_dir=None, min_area=20):
     """
     Load the relevant GeoJSON, add an area column and
     filter to exclude buildings too small.
 
     Parameters
     ----------
-    village: string
+    village_name: string
         The village's name.
     file_dir: string
         The directory containing the GeoJSON file.
@@ -66,9 +68,16 @@ def load_buildings(village, file_dir, min_area):
     buildings: geopandas.GeoDataFrame
         All of the buildings with attribues and geometries.
     """
+
     min_area = float(min_area)
-    input_file = '{}/{}.geojson'.format(file_dir, village)
-    buildings = gpd.read_file(input_file)
+
+    try:
+        village = json.loads(village)
+        buildings = gpd.GeoDataFrame.from_features(village, crs={'init': 'epsg:4326'})
+
+    except json.JSONDecodeError:
+        input_file = '{}/{}.geojson'.format(file_dir, village)
+        buildings = gpd.read_file(input_file)
     
     # project to equal-area before calculating area
     buildings_projected = buildings.to_crs(EPSG102022)
