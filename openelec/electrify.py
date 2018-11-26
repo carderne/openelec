@@ -242,9 +242,10 @@ def spatialise(network, nodes, clusters):
     network_gdf = gpd.GeoDataFrame(network_df, crs=clusters.crs, geometry=network_geometry)
     network_gdf = network_gdf.to_crs(epsg=4326)
 
-    network_new = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
-    orig_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 1]
-    new_conn = clusters_joined.loc[clusters_joined['conn_end'] == 1].loc[clusters_joined['conn_start'] == 0]
-    og = clusters_joined.loc[clusters_joined['conn_end'] == 0]
+    network = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
+    clusters_joined['type'] = ''
+    clusters_joined.loc[(clusters_joined['conn_end'] == 1) & (clusters_joined['conn_start'] == 1), 'type'] = 'orig'
+    clusters_joined.loc[(clusters_joined['conn_end'] == 1) & (clusters_joined['conn_start'] == 0), 'type'] = 'new'
+    clusters_joined.loc[clusters_joined['conn_end'] == 0, 'type'] = 'og'
 
-    return network_new, orig_conn, new_conn, og
+    return network, clusters_joined
