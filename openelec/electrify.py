@@ -169,7 +169,7 @@ def run_model(network, nodes, demand_per_person_kw_peak, mg_gen_cost_per_kw, mg_
                 if arc['enabled'] == 0 and arc['i'] != prev_arc:
 
                     goto = 'ne' if arc['ns'] == index else 'ns'  # make sure we look at the other end of the arc
-                    nodes, network, b_pop, b_length, best_nodes, best_arcs = find_best(
+                    nodes, network, b_pop, b_length, b_nodes, b_arcs = find_best(
                         nodes, network, arc[goto], arc['i'], b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs)
                     
         return nodes, network, b_pop, b_length, b_nodes, b_arcs
@@ -241,11 +241,30 @@ def spatialise(network, nodes, clusters):
     network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
     network_gdf = gpd.GeoDataFrame(network_df, crs=clusters.crs, geometry=network_geometry)
     network_gdf = network_gdf.to_crs(epsg=4326)
-
     network = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
+
     clusters_joined['type'] = ''
     clusters_joined.loc[(clusters_joined['conn_end'] == 1) & (clusters_joined['conn_start'] == 1), 'type'] = 'orig'
     clusters_joined.loc[(clusters_joined['conn_end'] == 1) & (clusters_joined['conn_start'] == 0), 'type'] = 'new'
     clusters_joined.loc[clusters_joined['conn_end'] == 0, 'type'] = 'og'
 
     return network, clusters_joined
+
+def summary_results(network, clusters, urban_elec, grid_mv_cost, grid_lv_cost):
+
+    urban_elec = float(urban_elec)
+
+    new = clusters.loc[clusters['type'] == 'new']
+    og = clusters.loc[clusters['type'] == 'og']
+    orig = clusters.loc[clusters['type'] == 'orig']
+    cost = og['og_cost'].sum() + grid_mv_cost * network['len'].sum() + grid_lv_cost * new['area'].sum()
+
+    return {
+        'new_conn': len(new),
+        'new_og': len(og),
+        'cost': cost,
+        'model_pop': clusters['pop'].sum(),
+        'orig_pop': orig['pop'].sum() * urban_elec,
+        'new_conn_pop': new['pop'].sum(),
+        'og_pop': og['pop'].sum()
+    }
