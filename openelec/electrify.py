@@ -32,11 +32,37 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
 
     clusters['conn_start'] = 0
     clusters.loc[clusters['grid_dist'] <= grid_dist_connected, 'conn_start'] = 1
-    clusters = clusters.loc[clusters['pop'] > 0]
+    clusters = clusters.loc[clusters['pop'] > minimum_pop]
     clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
     clusters = clusters.reset_index().drop(columns=['index'])
 
     return clusters
+
+
+def find_score(clusters, min_grid_dist=1000):
+    clusters = clusters.loc[clusters['grid_dist'] > min_grid_dist]
+
+    def get_score(row):
+        grid_score = 0
+        if row['grid_dist'] > 5000:
+            grid_score = 1
+        elif row['grid_dist'] > 10000:
+            grid_score = 2
+
+        pop_score = 0
+        if row['pop'] > 500:
+            pop_score = 1
+        elif row['pop'] > 1000:
+            pop_score = 2
+        elif row['pop'] > 2000:
+            pop_score = 3
+
+        return grid_score + pop_score
+
+    clusters['score'] = clusters.apply(get_score, axis=1)
+    clusters = clusters.to_crs(epsg=4326)
+
+    return clusters, {'num_clusters': len(clusters)}
 
 
 def create_network(clusters):
