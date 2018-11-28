@@ -200,15 +200,12 @@ def get_spanning_tree(X):
     if n_neighbors < 2:
         raise ValueError('Need at least three sample points')
 
-    points = np.asarray(X, dtype=float)
     G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
     full_tree = minimum_spanning_tree(G, overwrite=True)
 
     X = np.asarray(X)
     if (X.ndim != 2) or (X.shape[1] != 2):
         raise ValueError('shape of X should be (n_samples, 2)')
-
-    n_samples = X.shape[0]
 
     coo = sparse.coo_matrix(full_tree)
     A = X[coo.row].T
@@ -270,7 +267,6 @@ def direct_network(network, nodes, index):
         if found:    
             arc['ns'] = nodes[index]['i'] # tell this arc that this node is its starting point
             arc['dir'] = 1 # so we know this arc has been done
-            arc_index = arc['i'] # store arc index to find point at the other end
             
             for node in nodes:
                 if node['x'] == arc['xe'] and node['y'] == arc['ye']:
@@ -331,6 +327,12 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
     years = int(years)
     discount_rate = float(discount_rate)
 
+    # be flexible to inputs as percentage or decimals
+    if opex_ratio >= 1:
+        opex_ratio /= 100
+    if discount_rate >= 1:
+        discount_rate /= 100
+
     # Here we prepare the algorithm to optimise our network configuration, by pruning network extensions that aren't profitable.
     # Here the economic data should be entered.
     # optimisation strategy #2
@@ -380,7 +382,6 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 capex = cost_gen + cost
                 opex = (opex_ratio * capex)
                 income = income_per_month * 12
-                profit = income - capex - opex
                 
                 flows = np.ones(years) * (income - opex)
                 flows[0] = -capex
@@ -418,7 +419,6 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 capex = cost_gen + cost
                 opex = (opex_ratio * capex)
                 income = income_per_month * 12
-                profit = income - capex - opex
                 
                 flows = np.ones(years) * (income - opex)
                 flows[0] = -capex
@@ -496,8 +496,8 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
     npv = np.npv(discount_rate, flows)
 
     results = {'connected': count_nodes,
-               'gen_size': int(gen_size_kw),
-               'length': int(total_length),
+               'gen-size': int(gen_size_kw),
+               'line-length': int(total_length),
                'capex': int(capex),
                'opex': int(opex),
                'income': int(income),
@@ -571,7 +571,7 @@ def gdf_to_geojson(gdf, property_cols=[]):
     geoJson = {'type': 'FeatureCollection',
            'features': []}    
 
-    for idx, row in gdf.iterrows():
+    for _, row in gdf.iterrows():
         geoJson['features'].append({
             'type': 'Feature',
             'geometry': get_geometry(row['geometry']),

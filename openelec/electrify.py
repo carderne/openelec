@@ -62,7 +62,11 @@ def find_score(clusters, min_grid_dist=1000):
     clusters['score'] = clusters.apply(get_score, axis=1)
     clusters = clusters.to_crs(epsg=4326)
 
-    return clusters, {'num_clusters': len(clusters)}
+    summary = {
+        'num-clusters': len(clusters)
+    }
+
+    return clusters, summary
 
 
 def create_network(clusters):
@@ -285,12 +289,15 @@ def summary_results(network, clusters, urban_elec, grid_mv_cost, grid_lv_cost):
     orig = clusters.loc[clusters['type'] == 'orig']
     cost = og['og_cost'].sum() + grid_mv_cost * network['len'].sum() + grid_lv_cost * new['area'].sum()
 
-    return {
-        'new_conn': len(new),
-        'new_og': len(og),
-        'cost': cost,
-        'model_pop': clusters['pop'].sum(),
-        'orig_pop': orig['pop'].sum() * urban_elec,
-        'new_conn_pop': new['pop'].sum(),
-        'og_pop': og['pop'].sum()
+    # tags must match those in the config file
+    results = {
+        'new-conn': len(new),
+        'new-og': len(og),
+        'tot-cost': cost,
+        'model-pop': clusters['pop'].sum(),
+        'orig-conn-pop': orig['pop'].sum() * urban_elec,
+        'new-conn-pop': new['pop'].sum(),
+        'new-og-pop': og['pop'].sum()
     }
+
+    return results
