@@ -152,7 +152,6 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
 
     # To get our attributes back, we convert the dissolves polygon into singleparts
     # This means each contiguous bubble becomes its own polygon and can store its own attributes
-    crs = clusters.crs
     clusters = clusters.explode()
     clusters = clusters.reset_index()
 
@@ -213,7 +212,7 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
         return clusters
 
     else:
-        raise ValueException('Only implemented for path input')
+        raise ValueError('Only implemented for path input')
         #stats = zonal_stats(clusters_proj, raster, affine=affine, stats=operation, nodata=0)
 
 

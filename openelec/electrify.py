@@ -1,3 +1,7 @@
+"""
+electrify.py
+"""
+
 from math import sqrt
 import numpy as np
 import pandas as pd
@@ -10,7 +14,17 @@ from openelec import mgo
 
 def country_centroid(file_path):
     """
+    Get the centroid of any given file path.
 
+    Parameters
+    ----------
+    file_path: string
+        File path to a file that GeoPandas can understand.
+
+    Returns
+    -------
+    lat, lng: tuple of floats
+        Latitude and longitude in WGS84 decimal degree coordinates.
     """
 
     gdf = gpd.read_file(file_path)
@@ -40,6 +54,9 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200):
 
 
 def find_score(clusters, min_grid_dist=1000):
+    """
+
+    """
     clusters = clusters.loc[clusters['grid_dist'] > min_grid_dist]
 
     def get_score(row):
@@ -279,6 +296,7 @@ def spatialise(network, nodes, clusters):
     clusters_joined.loc[clusters_joined['conn_end'] == 0, 'type'] = 'og'
 
     return network, clusters_joined
+
 
 def summary_results(network, clusters, urban_elec, grid_mv_cost, grid_lv_cost):
 
