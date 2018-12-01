@@ -99,6 +99,7 @@ def create_clusters(raster, affine, crs):
 
     """
 
+    raster = raster.astype(np.float32)
 
     geoms = list(({'properties': {'raster_val': v}, 'geometry': s} 
                   for i, (s, v)
