@@ -1,11 +1,15 @@
 from distutils.core import setup
 
-with open('README.md', 'r') as fh:
-    long_description = fh.read()
+long_description = """
+OpenElec is a prototype for a general purpose tool for creating
+optimised national electricity access pathways, and finding villages
+for private off-grid development. The tool has functionality for both
+national- and local-level analysis. 
+"""
 
 setup(
     name='openelec',
-    version='0.0.1',
+    version='0.0.2',
     author='Chris Arderne',
     author_email='chris@rdrn.me',
     description='A tool for optimising electricity access pathways',
