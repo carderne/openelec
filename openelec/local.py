@@ -1,53 +1,21 @@
 """
-minigrid-optimiser
+local module for openelec
 Tool designed to take a small village and estimate the optimum connections, based on a PV installation location and economic data.
+
+(c) Chris Arderne
 """
 
 import json
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon
+from shapely.geometry import Point, LineString
 from math import sqrt
 import geopandas as gpd
-import os.path
-from collections import defaultdict
-from sklearn.neighbors import kneighbors_graph
-from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
-from scipy import sparse
+
+from openelec import util
 
 # This is the Africa Albers Equal Area Conic EPSG: 102022
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
-
-
-def village_centroids(file_dir):
-    """
-    Get list of available villages together with their centroids.
-
-    Parameters
-    ----------
-    file_dir: string
-        The path containing the GeoJSON files to be considered.
-
-    Returns
-    -------
-    villages: dict
-        dict key on village names, each item containng a dict
-        with the centroid {'lat': latitude, 'lng': longitude}.
-    """
-    villages = defaultdict(tuple)
-
-    for file in os.listdir(file_dir):
-        if file.endswith('.geojson'):
-
-            name = os.path.splitext(file)[0]
-
-            gdf = gpd.read_file(os.path.join(file_dir, file))
-            lng = gdf.geometry.centroid.x.mean()
-            lat = gdf.geometry.centroid.y.mean()
-
-            villages[name] = {'lat': lat, 'lng': lng}
-
-    return villages
 
 
 def load_buildings(village, file_dir=None, min_area=20):
@@ -146,9 +114,9 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
       pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
       df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
 
-    points = df[['X', 'Y']].as_matrix()
+    points = df[['X', 'Y']].values
 
-    T_x, T_y = get_spanning_tree(points)
+    T_x, T_y = util.spanning_tree(points)
 
     # This point and line data is then copied into two arrays, called *nodes* and *network*,
     # containing the houses and lines, respectively.
@@ -177,45 +145,6 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
         nodes[arc['ne']]['arcs'].append(arc['i'])
 
     return network, nodes
-
-
-def get_spanning_tree(X):
-    """
-    Function to calculate the Minimum spanning tree connecting the provided points X.
-    Modified from astroML code in mst_clustering.py
-
-    Parameters
-    ----------
-    X: array_like
-        2D array of shape (n_sample, 2) containing the x- and y-coordinates of the points.
-
-    Returns
-    -------
-    x_coords, y_coords : ndarrays
-        the x and y coordinates for plotting the graph.  They are of size
-        [2, n_links], and can be visualized using
-        ``plt.plot(x_coords, y_coords, '-k')``
-    """
-
-    n_neighbors = len(X) - 1
-    if n_neighbors < 2:
-        raise ValueError('Need at least three sample points')
-
-    G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
-    full_tree = minimum_spanning_tree(G, overwrite=True)
-
-    X = np.asarray(X)
-    if (X.ndim != 2) or (X.shape[1] != 2):
-        raise ValueError('shape of X should be (n_samples, 2)')
-
-    coo = sparse.coo_matrix(full_tree)
-    A = X[coo.row].T
-    B = X[coo.col].T
-
-    x_coords = np.vstack([A[0], B[0]])
-    y_coords = np.vstack([A[1], B[1]])
-
-    return x_coords, y_coords
 
 
 def direct_network(network, nodes, index):
@@ -287,7 +216,7 @@ def direct_network(network, nodes, index):
     return network, nodes
 
 
-def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
+def model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
               opex_ratio, years, discount_rate, target_coverage=-1):
     """
     Run the model with the given economic parameters and return the processed network and nodes.
@@ -362,7 +291,6 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
                 cost, income_per_month, nodes, network = calculate_profit(nodes, network, arc['ne'], disabled_arc_index, cost, income_per_month)
                 
         return cost, income_per_month, nodes, network
-
 
     # Then we start with the complete network, and try 'deleting' each arc.
     # Whichever deletion is the most profitable, we make it permanent and
@@ -468,46 +396,62 @@ def run_model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connecti
             for arc in connected_arcs:
                 arc['enabled'] = 0
 
+    def summary(network, nodes):
+        """
+        And calculate some quick summary numbers for the village.
+        Needs to be inside model() if I don't want to pass all the
+        parameters around again.
 
-    # And calculate some quick summary numbers for the village
-    # create a quick report
-    # number connected, length of line, total profit over ten years
-    count_nodes = 0
-    income_per_month = 0
-    gen_size_kw = 0
-    for node in nodes:
-        if node['conn'] == 1:
-            count_nodes += 1
-            income_per_month += node['area'] * num_people_per_m2 * demand_per_person_kwh_month * tariff
-            gen_size_kw += node['area'] * num_people_per_m2 * demand_per_person_kw_peak
-    
-    count_nodes -= 1  # so we don't count the generator
+        Parameters
+        ----------
+        network, nodes
 
-    total_length = 0.0
-    for arc in network:
-        if arc['enabled'] == 1:
-            total_length += arc['len']
+        Returns
+        -------
+        results: dict
+            Dict of summary results.
+        """
 
-    capex = gen_size_kw * gen_cost_per_kw + cost_connection * count_nodes + cost_wire * total_length
-    opex = (opex_ratio * capex)
-    income = income_per_month * 12
+        count_nodes = 0
+        income_per_month = 0
+        gen_size_kw = 0
+        for node in nodes:
+            if node['conn'] == 1:
+                count_nodes += 1
+                income_per_month += node['area'] * num_people_per_m2 * demand_per_person_kwh_month * tariff
+                gen_size_kw += node['area'] * num_people_per_m2 * demand_per_person_kw_peak
+        
+        count_nodes -= 1  # so we don't count the generator
 
-    flows = np.ones(years) * (income - opex)
-    flows[0] = -capex
-    npv = np.npv(discount_rate, flows)
+        total_length = 0.0
+        for arc in network:
+            if arc['enabled'] == 1:
+                total_length += arc['len']
 
-    results = {'connected': count_nodes,
-               'gen-size': int(gen_size_kw),
-               'line-length': int(total_length),
-               'capex': int(capex),
-               'opex': int(opex),
-               'income': int(income),
-               'npv': int(npv)}
+        capex = gen_size_kw * gen_cost_per_kw + cost_connection * count_nodes + cost_wire * total_length
+        opex = (opex_ratio * capex)
+        income = income_per_month * 12
 
-    return results, network, nodes
+        flows = np.ones(years) * (income - opex)
+        flows[0] = -capex
+        npv = np.npv(discount_rate, flows)
+
+        results = {'connected': count_nodes,
+                'gen-size': int(gen_size_kw),
+                'line-length': int(total_length),
+                'capex': int(capex),
+                'opex': int(opex),
+                'income': int(income),
+                'npv': int(npv)}
+
+        return results
+
+    results = summary(network, nodes)
+
+    return network, nodes, results
 
 
-def network_to_spatial(buildings, network, nodes):
+def spatialise(buildings, network, nodes):
     """
     Create GeoDataFrames with geometries from the network.
 
@@ -545,106 +489,3 @@ def network_to_spatial(buildings, network, nodes):
     network_gdf = network_gdf.loc[network_gdf['enabled'] == 1]
 
     return network_gdf, buildings_gdf
-
-
-def gdf_to_geojson(gdf, property_cols=[]):
-    """
-    Convert GeoDataFrame to GeoJSON that can be supplied to JavaScript.
-
-    Parameters
-    ----------
-    gdf: geopandas.GeoDataFrame
-        GeoDataFrame to be converted.
-    property_cols: list, optional
-        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
-
-    Returns
-    -------
-    geoJson: dict
-        A GeoJSON representatial
-        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
-
-    Returns
-    -------
-    geoJson: dict
-        A GeoJSON representation that can be parsed by standard JSON readers.
-    """
-    geoJson = {'type': 'FeatureCollection',
-           'features': []}    
-
-    for _, row in gdf.iterrows():
-        geoJson['features'].append({
-            'type': 'Feature',
-            'geometry': get_geometry(row['geometry']),
-            'properties': get_properties(row, property_cols)
-        })
-
-    return geoJson
-
-
-def get_geometry(geometry):
-    """
-    Convert a GeoDataFrame geometry value into a GeoJSON-friendly representation.
-
-    Parameters
-    ----------
-    geometry: shapely.LineString, shapely.Polygon or shapely.MultiPolygon
-        A single geometry entry from a GeoDataFrame.
-
-    Returns
-    -------
-    geom_dict: dict
-        A GeoJSON geometry element of the form
-        'geometry': {
-            'type': type,
-            'coordinates': coords
-        } 
-    """
-    geom_dict = {}
-    
-    if isinstance(geometry, LineString):
-        geom_dict['type'] = 'LineString'
-        geom_dict['coordinates'] = list(geometry.coords)
-
-    elif isinstance(geometry, Polygon):
-        geom_dict['type'] = 'Polygon'
-        geom_dict['coordinates'] = [list(geometry.exterior.coords)]
-    
-    elif isinstance(geometry, MultiPolygon):
-        if len(geometry.geoms) > 1:
-            # should handle true multipolygons somehow
-            pass
-        
-        geom_dict['type'] = 'Polygon'
-        geom_dict['coordinates'] = [list(geometry.geoms[0].exterior.coords)]
-        
-    return geom_dict
-
-
-def get_properties(row, property_cols):
-    """
-    Get the selected columns from the pandas row as a GeoJSON-friendly dict.
-
-    Parameters
-    ----------
-    row: pandas.Series
-        A single row from a GeoDataFrame.
-    property_cols: list
-        List of column names to be added.
-
-    Returns
-    -------
-    properties: dict
-        A GeoJSON element of the form
-        properties: {
-            'column1': property1,
-            'column2': property2,
-            ...
-        }
-    """
-    properties = {}
-    
-    for col in property_cols:
-        properties[col] = row[col]
-        
-    return properties

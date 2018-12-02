@@ -1,10 +1,12 @@
 """
-clusters module for electrification-planner
+clusters module for openelec
 
 Provides functions to read in a raster population dataset
 and convert to discrete vector polgons, each with a set
 population value. Additionally calculate each polygon's
-distance from a provided grid infrastructure vector. 
+distance from a provided grid infrastructure vector.
+
+(c) Chris Arderne
 """
 
 import json
