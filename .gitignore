@@ -1,13 +1,5 @@
-/mgo/cache/
-*.png
-*.xlsx
 stats.ipynb
 test_speed.ipynb
-*.png
-*.qgz
-ignore_data/
-Scratch.ipynb
-roadplan.md
 packaging.txt
 
 # Byte-compiled / optimized / DLL files

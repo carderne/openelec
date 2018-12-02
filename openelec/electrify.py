@@ -301,6 +301,9 @@ def spatialise(network, nodes, clusters):
 def summary_results(network, clusters, urban_elec, grid_mv_cost, grid_lv_cost):
 
     urban_elec = float(urban_elec)
+    # be flexible to inputs as percentage or decimals
+    if urban_elec >= 1:
+        urban_elec /= 100
 
     new = clusters.loc[clusters['type'] == 'new']
     og = clusters.loc[clusters['type'] == 'og']

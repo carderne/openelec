@@ -1,35 +1,29 @@
 # openelec
-[![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec)
+[![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec) [![PyPI version](https://badge.fury.io/py/openelec.svg)](https://badge.fury.io/py/openelec) 
 
-This is a slowly merging combination of two tools: 
+openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
-1. Creating national-level plans for achieving universal electricity access
-2. Optimising town/village-level mini-grid, densification and standalone systems.
+Web interface running here: [openelec](https://openelec.surge.sh/)
+(If the server isn't running the interface will work but no data will load.)
 
-
-
-## National-level
+### National-level
 
 A tool for modelling the optimal pathways to improving electricity access.
 
 Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
 
+### Town-level
 
+A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) and LV networks using OpenStreetMap building data and a minimum spanning tree approach to network optimisation. 
 
-## Town-level
-
-A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) using OpenStreetMap building data and a minimum spanning tree approach to network optimisation. 
-
-Provides model features through a simple API, as well as a basic Flask web app.
-
-See the blog post here for a general overview of the model development (probably out of date): [https://rdrn.me/flask-optimize-minigrid/](https://rdrn.me/flask-optimize-minigrid/)
+Described in my blog post here: [A Flask app for mini-grid planning with a cost-optimised spanning tree](https://rdrn.me/flask-optimize-minigrid/)
 
 Installation
 --------
 
 **Requirements**
 
-minigrid-optimiser requires Python >= 3.5 with the following packages installed:
+openelec requires Python >= 3.5 with the following packages installed:
 
 - ``flask`` >= 1.0.2 (only for the web app)
 - ``numpy`` >= 1.14.2
@@ -39,7 +33,13 @@ minigrid-optimiser requires Python >= 3.5 with the following packages installed:
 - ``scipy`` >= 1.0.0
 - ``scikit-learn`` >= 0.17.1
 
-**Install**
+**Install with pip**
+
+```
+pip install openelec
+```
+
+**Install from GitHub**
 
 Downloads or clone the repository:
 
