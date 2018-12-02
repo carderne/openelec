@@ -11,6 +11,8 @@ from pathlib import Path
 
 from openelec import mgo
 
+def test():
+    return 'openelec is working'
 
 def country_centroid(file_path):
     """
