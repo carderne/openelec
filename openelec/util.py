@@ -205,6 +205,9 @@ def properties(row, property_cols):
     prop_dict = {}
     
     for col in property_cols:
-        prop_dict[col] = row[col]
+        if pd.notna(row[col]):
+            prop_dict[col] = row[col]
+        else:
+            prop_dict[col] = 0
         
     return prop_dict
