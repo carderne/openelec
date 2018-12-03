@@ -130,7 +130,7 @@ def geojsonify(gdf, property_cols=[]):
         A GeoJSON representation that can be parsed by standard JSON readers.
     """
     geoJson = {'type': 'FeatureCollection',
-           'features': []}    
+           'features': []}
 
     for _, row in gdf.iterrows():
         geoJson['features'].append({

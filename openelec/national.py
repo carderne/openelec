@@ -311,7 +311,7 @@ def spatialise(network, nodes, clusters):
     # do the same for the network array
     network_df = pd.DataFrame(network)
     network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
-    network_gdf = gpd.GeoDataFrame(network_df, crs=clusters.crs, geometry=network_geometry)
+    network_gdf = gpd.GeoDataFrame(network_df, crs=EPSG102022, geometry=network_geometry)
     network_gdf = network_gdf.to_crs(epsg=4326)
     network = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
 
