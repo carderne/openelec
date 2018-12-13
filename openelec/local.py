@@ -18,7 +18,7 @@ from openelec import util
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
 
-def load_buildings(village, file_dir=None, min_area=20):
+def load_buildings(village, file_dir=None):
     """
     Load the relevant GeoJSON, add an area column and
     filter to exclude buildings too small.
@@ -38,12 +38,9 @@ def load_buildings(village, file_dir=None, min_area=20):
         All of the buildings with attribues and geometries.
     """
 
-    min_area = float(min_area)
-
     try:
         village = json.loads(village)
         buildings = gpd.GeoDataFrame.from_features(village, crs={'init': 'epsg:4326'})
-
     except json.JSONDecodeError:
         input_file = '{}/{}.geojson'.format(file_dir, village)
         buildings = gpd.read_file(input_file)
@@ -52,7 +49,6 @@ def load_buildings(village, file_dir=None, min_area=20):
     buildings_projected = buildings.to_crs(EPSG102022)
 
     buildings_projected["area"] = buildings_projected['geometry'].area
-    buildings_projected = buildings_projected.loc[buildings_projected['area'] > min_area]
 
     # Sort with largest building first so that if no gen point specified,
     # the largest building will be treated as the 'center' of the network
@@ -65,7 +61,7 @@ def load_buildings(village, file_dir=None, min_area=20):
     return buildings
 
 
-def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
+def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None, min_area=20):
     """
     Create a network of lines and nodes from the buildings file,
     using a Minimum spanning tree to generate the connecting
@@ -92,6 +88,9 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
         index, x, y, area, marg_dist, tot_dist, conn, arcs
     """
 
+    min_area = float(min_area)
+    buildings = buildings.loc[buildings['area'] > min_area]
+
     buildings_projected = buildings.to_crs(EPSG102022)
 
     buildings_points = buildings_projected.copy()
@@ -105,7 +104,6 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None):
 
     # If generator location not specified, the model defaults to using building index 0 as the 'main' point
     # This is the largest, due to sort by area in load_buildings()
-    # TODO Add option to use center of gravity instead?
     if specify_gen:
       gen_lat = float(gen_lat)
       gen_lng = float(gen_lng)
@@ -479,8 +477,8 @@ def spatialise(buildings, network, nodes):
     if nodes_df.loc[0, 'area'] == 0:
         nodes_df.index = nodes_df.index - 1  # to get rid of pv point
     nodes_df = nodes_df.drop(columns=['area', 'arcs'])
-    buildings_gdf = buildings.merge(nodes_df, left_index=True, right_index=True)
-    buildings_gdf = buildings_gdf.loc[buildings_gdf['conn'] == 1]
+    buildings_gdf = buildings.merge(nodes_df, left_index=True, right_index=True, how='left')
+    #buildings_gdf = buildings_gdf.loc[buildings_gdf['conn'] == 1]
 
     network_df = pd.DataFrame(network)
     network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
