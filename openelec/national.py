@@ -42,10 +42,12 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
     clusters = gpd.read_file(clusters_file)
     clusters = clusters.to_crs(EPSG102022)
 
+    # basic filtering for planning
     clusters['conn_start'] = 0
     clusters.loc[clusters['grid_dist'] <= grid_dist_connected, 'conn_start'] = 1
     clusters.loc[clusters['ntl'] <= min_ntl_connected, 'conn_start'] = 0
     clusters = clusters.loc[clusters['pop'] > minimum_pop]
+
     clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
     clusters = clusters.reset_index().drop(columns=['index'])
 

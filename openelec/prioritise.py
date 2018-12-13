@@ -11,7 +11,8 @@ import geopandas as gpd
 from shapely.geometry import LineString
 from pathlib import Path
 
-def priority(clusters, min_grid_dist=1000, max_ntl=50):
+def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
+             gdp_range=None, travel_range=None):
     """
     Calculate the priority clusters that meet the criteria,
     and calculate a score from 1-5 for each.
@@ -34,31 +35,39 @@ def priority(clusters, min_grid_dist=1000, max_ntl=50):
         Summary results.
     """
 
-    clusters = clusters.loc[clusters['grid_dist'] > min_grid_dist]
-    clusters = clusters.loc[clusters['ntl'] < max_ntl]
+    # extended filtering with ranges
+    clusters['consider'] = 0
+    if pop_range:
+        clusters.loc[clusters['pop'].between(pop_range[0], pop_range[1]), 'consider'] = 1
+    if grid_range:
+        clusters.loc[clusters['grid_dist'].between(grid_range[0], grid_range[1]), 'consider'] = 1
+    if ntl_range:
+        clusters.loc[clusters['ntl'].between(ntl_range[0], ntl_range[1]), 'consider'] = 1
+    if gdp_range:
+        clusters.loc[clusters['gdp'].between(gdp_range[0], gdp_range[1]), 'consider'] = 1
+    if travel_range:
+        clusters.loc[clusters['travel'].between(travel_range[0], travel_range[1]), 'consider'] = 1
+
+    pop_max = clusters.loc[clusters['consider'] == 1, 'pop'].max()
+    gdp_max = clusters.loc[clusters['consider'] == 1, 'gdp'].max()
+    grid_max = clusters.loc[clusters['consider'] == 1, 'grid_dist'].max()
 
     def get_score(row):
-        grid_score = 0
-        if row['grid_dist'] > 5000:
-            grid_score = 1
-        elif row['grid_dist'] > 10000:
-            grid_score = 2
+        gdp_score = row['gdp'] / gdp_max
+        pop_score = row['pop'] / pop_max
+        grid_score = row['grid_dist'] / grid_max
 
-        pop_score = 0
-        if row['pop'] > 500:
-            pop_score = 1
-        elif row['pop'] > 1000:
-            pop_score = 2
-        elif row['pop'] > 2000:
-            pop_score = 3
+        return gdp_score + pop_score + grid_score
 
-        return grid_score + pop_score
+    clusters['score'] = None
+    clusters.loc[clusters['consider'] == 1, 'score'] = clusters.apply(get_score, axis=1)
+    max_score = clusters['score'].max()
+    clusters['score'] = clusters['score'] / max_score
 
-    clusters['score'] = clusters.apply(get_score, axis=1)
     clusters = clusters.to_crs(epsg=4326)
 
     summary = {
-        'num-clusters': len(clusters)
+        'num-clusters': len(clusters.loc[clusters['consider'] == 1])
     }
 
     return clusters, summary
