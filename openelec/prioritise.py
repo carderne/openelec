@@ -36,17 +36,18 @@ def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
     """
 
     # extended filtering with ranges
-    clusters['consider'] = 0
+    clusters['consider'] = 1
     if pop_range:
-        clusters.loc[clusters['pop'].between(pop_range[0], pop_range[1]), 'consider'] = 1
+        clusters.loc[~clusters['pop'].between(pop_range[0], pop_range[1]), 'consider'] = 0
+
     if grid_range:
-        clusters.loc[clusters['grid'].between(grid_range[0], grid_range[1]), 'consider'] = 1
+        clusters.loc[~clusters['grid'].between(grid_range[0], grid_range[1]), 'consider'] = 0
     if ntl_range:
-        clusters.loc[clusters['ntl'].between(ntl_range[0], ntl_range[1]), 'consider'] = 1
+        clusters.loc[~clusters['ntl'].between(ntl_range[0], ntl_range[1]), 'consider'] = 0
     if gdp_range:
-        clusters.loc[clusters['gdp'].between(gdp_range[0], gdp_range[1]), 'consider'] = 1
+        clusters.loc[~clusters['gdp'].between(gdp_range[0], gdp_range[1]), 'consider'] = 0
     if travel_range:
-        clusters.loc[clusters['travel'].between(travel_range[0], travel_range[1]), 'consider'] = 1
+        clusters.loc[~clusters['travel'].between(travel_range[0], travel_range[1]), 'consider'] = 0
 
     pop_max = clusters.loc[clusters['consider'] == 1, 'pop'].max()
     gdp_max = clusters.loc[clusters['consider'] == 1, 'gdp'].max()
@@ -65,6 +66,8 @@ def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
     clusters['score'] = clusters['score'] / max_score
 
     clusters = clusters.to_crs(epsg=4326)
+
+    print(len(clusters.loc[clusters['consider'] == 1]))
 
     summary = {
         'num-clusters': len(clusters.loc[clusters['consider'] == 1])
