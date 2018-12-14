@@ -40,7 +40,7 @@ def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
     if pop_range:
         clusters.loc[clusters['pop'].between(pop_range[0], pop_range[1]), 'consider'] = 1
     if grid_range:
-        clusters.loc[clusters['grid_dist'].between(grid_range[0], grid_range[1]), 'consider'] = 1
+        clusters.loc[clusters['grid'].between(grid_range[0], grid_range[1]), 'consider'] = 1
     if ntl_range:
         clusters.loc[clusters['ntl'].between(ntl_range[0], ntl_range[1]), 'consider'] = 1
     if gdp_range:
@@ -50,12 +50,12 @@ def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
 
     pop_max = clusters.loc[clusters['consider'] == 1, 'pop'].max()
     gdp_max = clusters.loc[clusters['consider'] == 1, 'gdp'].max()
-    grid_max = clusters.loc[clusters['consider'] == 1, 'grid_dist'].max()
+    grid_max = clusters.loc[clusters['consider'] == 1, 'grid'].max()
 
     def get_score(row):
         gdp_score = row['gdp'] / gdp_max
         pop_score = row['pop'] / pop_max
-        grid_score = row['grid_dist'] / grid_max
+        grid_score = row['grid'] / grid_max
 
         return gdp_score + pop_score + grid_score
 

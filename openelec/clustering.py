@@ -113,7 +113,6 @@ def create_clusters(raster, affine, crs):
     return clusters
 
 
-# TODO Could instead filter at the raster stage?
 def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, buffer_amount=150):
     """
     The vectors created by create_clusters() are a single square for each raster pixel.
@@ -172,7 +171,7 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     return clusters
 
 
-def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None):
+def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None, no_neg=True):
     """
     The filter_merge_clusters() process loses the underlying raster values.
     So we need to use rasterstats.zonal_stats() to get it back.
@@ -215,7 +214,7 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
         return clusters
 
     else:
-        raise ValueError('Only implemented for path input')
+        raise NotImplementedError('Only implemented for path input.')
         #stats = zonal_stats(clusters_proj, raster, affine=affine, stats=operation, nodata=0)
 
 
@@ -267,7 +266,46 @@ def add_vector_layer(clusters, vector, operation, col_name, shape, affine, raste
         return clusters.to_crs(epsg=4326)
 
     else:
-        raise ValueError('Currently only "distance" is supported as an argument for operations')
+        raise NotImplementedError('Currently only "distance" is supported as an argument for operations.')
+
+
+def fix_column(clusters, col_name, factor=1, minimum=0, maximum=None, no_value=None, per_capita=False):
+    """
+
+    """
+
+    # multiply the column by a fixed factor
+    if factor != None and factor != 1:
+        clusters[col_name] = clusters[col_name] * factor
+
+    # remove negative values
+    if minimum != None:
+        clusters.loc[clusters[col_name] < minimum, col_name] = minimum
+
+    # apply a cutoff maximum value
+    if maximum != None:
+        if maximum == 'largest':
+            limit = 2 * float(clusters.loc[clusters['pop'] == clusters['pop'].max(), col_name].tolist()[0])
+            clusters.loc[clusters[col_name] > limit, col_name] = limit
+        
+        else:
+            raise NotImplementedError('maximum only implemented for "largest".')
+
+    # replace nan values
+    if no_value != None:
+        if no_value == 'median':
+            replace = {col_name: clusters[col_name].median()}
+            clusters = clusters.fillna(value=replace)
+
+        else:
+            raise NotImplementedError('no_value only implemented for "median".')
+
+    if per_capita:
+        clusters[col_name] = clusters[col_name] / clusters['pop']
+
+    return clusters
+
+
 
 def save_clusters(clusters, out_path):
     """
@@ -282,6 +320,8 @@ def save_clusters(clusters, out_path):
         out_path = str(out_path)
     if '.gpkg' in out_path:
         driver = 'GPKG'
+    elif '.geojson' in out_path or '.json' in out_path:
+        driver='GeoJSON'
     else:
         driver = None
 
