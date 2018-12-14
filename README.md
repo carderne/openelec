@@ -14,6 +14,10 @@ A tool for modelling the optimal pathways to improving electricity access. Descr
 
 A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) and LV networks using OpenStreetMap building data and a minimum spanning tree approach to network optimisation. Described in my blog post here: [A Flask app for mini-grid planning with a cost-optimised spanning tree](https://rdrn.me/flask-optimize-minigrid/)
 
+**Web App usage**
+
+[![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](https://gfycat.com/FocusedMasculineLamb)
+
 Installation
 --------
 
