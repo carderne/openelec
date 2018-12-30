@@ -77,36 +77,36 @@ def create_network(clusters):
     clusters_points['X'] = clusters_points.geometry.x
     clusters_points['Y'] = clusters_points.geometry.y
 
-    df = pd.DataFrame(clusters_points)
-    points = df[['X', 'Y']].values
-
-    T_x, T_y = util.spanning_tree(points)
-
     # This point and line data is then copied into two arrays, called network and nodes,
     # containing the lines and clusters, respectively. Each element represents a single cluster or joining arc,
     # and has data within describing the coordinates and more.
 
-    df['conn_end'] = df['conn_start']
-    df['off_grid_cost'] = 0
+    clusters_points['conn_end'] = clusters_points['conn_start']
+    clusters_points['off_grid_cost'] = 0
 
-    nodes_list = df[['X', 'Y', 'area', 'pop', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
+    nodes_list = clusters_points[['X', 'Y', 'area', 'pop', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
     nodes = []
     # add an empty list at position 8 for connected arc indices
     for n in nodes_list:
         nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'pop': n[4], 'conn_start': n[5], 'conn_end': n[6], 'og_cost': n[7], 'arcs': []})
 
+    mst_points = clusters_points[['X', 'Y']].values
+    start_points, end_points, nodes_connected = util.spanning_tree(mst_points, approximate=True)
+
     counter = 0
     network = []
-    for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
-        xs = int(xs)
-        ys = int(ys)
-        xe = int(xe)
-        ye = int(ye)
+    for s, e, n in zip(start_points, end_points, nodes_connected):
+        xs = int(s[0])
+        ys = int(s[1])
+        xe = int(e[0])
+        ye = int(e[1])
         length = int(sqrt((xe - xs)**2 + (ye - ys)**2))
-        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': None, 'ne': None, 'existing': 1, 'len': length, 'enabled': 1})
-        counter += 1
 
-    network, nodes = connect_network(network, nodes, 0)
+        ns = n[0]
+        ne = n[1]
+
+        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'existing': 1, 'len': length, 'enabled': 1})
+        counter += 1
 
     # for every node, add references to every arc that connects to it
     for arc in network:
@@ -119,45 +119,8 @@ def create_network(clusters):
             connected_arcs = [network[arc_index] for arc_index in node['arcs']]
             for arc in connected_arcs:
                 arc['existing'] = 0
-                arc['enabled'] = 0 
+                arc['enabled'] = 0
 
-    return network, nodes
-
-
-def connect_network(network, nodes, index):
-    """
-    Recursive function to tell each arc which nodes it is connected to.
-    Each arc connects two nodes, each node can have 1+ arcs connected to it.
-
-    Parameters
-    ----------
-    network: list of dicts
-        The network arcs.
-    nodes: list of dicts
-        The network nodes.
-    index: int
-        Current node index.
-    """
-
-    cur_node = nodes[index]
-    for arc in network:
-        found = 0
-        if arc['ns'] == None and arc['ne'] == None:  # if this arc has no connected nodes
-            if (arc['xs'] == cur_node['x'] and arc['ys'] == cur_node['y']):  # if the xs and ys match a node
-                found = 'xe'  # point towards position 3 (xe) for the next node
-            if (arc['xe'] == cur_node['x'] and arc['ye'] == cur_node['y']):  # if the xe and ye match a node
-                found = 'xs'  # point towards position 1 (xs) for the next node
-
-            if found:
-                arc['ns'] = cur_node['i'] # tell this arc that this node is its starting point
-            
-                for node in nodes:
-                    if node['i'] != cur_node['i']:  # make sure we look at hte other end of the arc
-                        if node['x'] == arc[found] and node['y'] == arc['ye' if found == 'xe' else 'ys']:
-                            arc['ne'] = node['i'] # tell this arc that this node is its ending point                  
-                            network, nodes = connect_network(network, nodes, node['i']) # and investigate downstream
-                            break
-    
     return network, nodes
 
 

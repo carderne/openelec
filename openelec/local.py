@@ -100,7 +100,6 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None, min
 
     # We then take all the houses and calculate the optimum network that connects them all to the PV point,
     # before we start analysing further and deciding on the optimum network.
-    df = pd.DataFrame(buildings_points)
 
     # If generator location not specified, the model defaults to using building index 0 as the 'main' point
     # This is the largest, due to sort by area in load_buildings()
@@ -110,42 +109,48 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None, min
       pv_point = gpd.GeoDataFrame(crs={'init': 'epsg:4326'}, geometry=[Point([gen_lng, gen_lat])])
       pv_point_projected = pv_point.to_crs(EPSG102022)
       pv_point_df = [{'X': pv_point_projected.geometry.x, 'Y': pv_point_projected.geometry.y, 'area': 0}]
-      df = pd.concat([pd.DataFrame(pv_point_df), df], ignore_index=True)
-
-    points = df[['X', 'Y']].values
-
-    T_x, T_y = util.spanning_tree(points)
+      buildings_points = pd.concat([pd.DataFrame(pv_point_df), buildings_points], ignore_index=True)
 
     # This point and line data is then copied into two arrays, called *nodes* and *network*,
     # containing the houses and lines, respectively.
     # Each element represents a single house or joining arc, and has data within describing the coordinates and more.
     # astype(int) doesn't round - it just chops off the decimals
-    nodes_list = df[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
+    nodes_list = buildings_points[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
     nodes = []
     for n in nodes_list:
         nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'marg_dist': 0, 'tot_dist': 0, 'conn': 0, 'arcs': []})
-        
+    
+    mst_points = buildings_points[['X', 'Y']].values
+    start_points, end_points, nodes_connected = util.spanning_tree(mst_points, approximate=True)
+
     counter = 0
     network = []
-    for xs, ys, xe, ye in zip(T_x[0], T_y[0], T_x[1], T_y[1]):
-        network.append({'i': counter, 'xs': int(xs), 'ys': int(ys), 'xe': int(xe), 'ye': int(ye), 'ns':-99, 'ne':-99, 'dir':0, 'len':0, 'enabled':1})
-        counter += 1
-        
-    # add the length for each arc
-    for arc in network:
-        arc['len'] = sqrt((arc['xe'] - arc['xs'])**2 + (arc['ye'] - arc['ys'])**2)
+    for s, e, n in zip(start_points, end_points, nodes_connected):
+        xs = int(s[0])
+        ys = int(s[1])
+        xe = int(e[0])
+        ye = int(e[1])
+        length = int(sqrt((xe - xs)**2 + (ye - ys)**2))
 
-    network, nodes = direct_network(network, nodes, 0)
+        ns = n[0]
+        ne = n[1]
+
+        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'len': length, 'enabled': 1})
+        counter += 1
 
     # for every node, add references to every arc that connects to it
     for arc in network:
         nodes[arc['ns']]['arcs'].append(arc['i'])
         nodes[arc['ne']]['arcs'].append(arc['i'])
 
+    # can probably do away with this
+    # and just do what national.py does at the modelling stage
+    network, nodes = direct_network(network, nodes, 0, None)
+
     return network, nodes
 
 
-def direct_network(network, nodes, index):
+def direct_network(network, nodes, index, prev):
     """
     Recursive function to direct the network from the PV point outwards
     We need to calculate the directionality of the network, starting from the PV location and
@@ -164,52 +169,31 @@ def direct_network(network, nodes, index):
         Current node index that we're looking at.
 
     Returns
-    -------
+    -------`
     network: list of lists
         Nearby network directed for current node.
     nodes: list of list
         The nodes object.
     """
-    for arc in network:
-        found = False
-        if arc['xs'] == nodes[index]['x'] and arc['ys'] == nodes[index]['y']:
-            # make sure we haven't done this arc already!
-            if arc['dir'] == 1:
-                continue
-            found = True
-            
-        elif arc['xe'] == nodes[index]['x'] and arc['ye'] == nodes[index]['y']:
-            # make sure we haven't done this arc already!
-            if arc['dir'] == 1:
-                continue
-            found = True
-            
-            # flip it around because it's pointing the wrong way
+
+    connected_arcs = nodes[index]['arcs']
+    for arc_index in connected_arcs:
+        if arc_index == prev:
+            continue
+
+        arc = network[arc_index]
+        if not arc['ns'] == index:
+            arc['ne'] = arc['ns']
+            arc['ns'] = index
+
             xs_new = arc['xe']
             ys_new = arc['ye']
             arc['xe'] = arc['xs']
             arc['ye'] = arc['ys']
             arc['xs'] = xs_new
             arc['ys'] = ys_new
-            
-        if found:    
-            arc['ns'] = nodes[index]['i'] # tell this arc that this node is its starting point
-            arc['dir'] = 1 # so we know this arc has been done
-            
-            for node in nodes:
-                if node['x'] == arc['xe'] and node['y'] == arc['ye']:
-                    arc['ne'] = node['i'] # tell this arc that this node is its ending point
-                    node['marg_dist'] = arc['len'] # assign arc length to node's marginal distance
-                    node['tot_dist'] = nodes[index]['marg_dist'] + arc['len'] # and calculate total distance
-                    
-                    # If this building exceeds the maximum total length allowed, disable the arc connecting it
-                    # The later algorithms respect this settings
-                    # DISABLED
-                    # if node[5] > max_length:
-                    #    arc[9] = 0
-                    
-                    network, nodes = direct_network(network, nodes, node['i']) # and investigate downstream from this node
-                    break
+
+        network, nodes = direct_network(network, nodes, arc['ne'], arc_index) # and investigate downstream from this node
 
     return network, nodes
 

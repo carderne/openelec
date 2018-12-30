@@ -13,7 +13,7 @@ import geopandas as gpd
 import os.path
 from collections import defaultdict
 from sklearn.neighbors import kneighbors_graph
-from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
+from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy import sparse
 
 def centroid(file_path):
@@ -69,7 +69,7 @@ def village_centroids(file_dir):
     return villages
 
 
-def spanning_tree(X):
+def spanning_tree(X, approximate=False):
     """
     Function to calculate the Minimum spanning tree connecting the provided points X.
     Modified from astroML code in mst_clustering.py
@@ -87,25 +87,33 @@ def spanning_tree(X):
         ``plt.plot(x_coords, y_coords, '-k')``
     """
 
-    n_neighbors = len(X) - 1
-    if n_neighbors < 2:
-        raise ValueError('Need at least three sample points')
+    if approximate:
+        n_neighbors = 50
+
+    else:
+        n_neighbors = len(X) - 1
+        if n_neighbors < 2:
+            raise ValueError('Need at least three sample points')
 
     G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
+
+    # Could save more processing by here pruning arcs that connect connected nodes
+
     full_tree = minimum_spanning_tree(G, overwrite=True)
 
     X = np.asarray(X)
-    if (X.ndim != 2) or (X.shape[1] != 2):
+    if X.ndim != 2 or X.shape[1] != 2:
         raise ValueError('shape of X should be (n_samples, 2)')
 
     coo = sparse.coo_matrix(full_tree)
     A = X[coo.row].T
     B = X[coo.col].T
 
-    x_coords = np.vstack([A[0], B[0]])
-    y_coords = np.vstack([A[1], B[1]])
+    start_points = [(Ax, Ay) for Ax, Ay in zip(A[0], A[1])]
+    end_points = [(Bx, By) for Bx, By in zip(B[0], B[1])]
+    nodes_connected = [(s, e) for s, e in zip(coo.row, coo.col)]
 
-    return x_coords, y_coords
+    return start_points, end_points, nodes_connected
 
 def geojsonify(gdf, property_cols=[]):
     """
