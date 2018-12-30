@@ -115,6 +115,7 @@ def spanning_tree(X, approximate=False):
 
     return start_points, end_points, nodes_connected
 
+
 def geojsonify(gdf, property_cols=[]):
     """
     Convert GeoDataFrame to GeoJSON that can be supplied to JavaScript.

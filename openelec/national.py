@@ -86,7 +86,6 @@ def create_network(clusters):
 
     nodes_list = clusters_points[['X', 'Y', 'area', 'pop', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
     nodes = []
-    # add an empty list at position 8 for connected arc indices
     for n in nodes_list:
         nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'pop': n[4], 'conn_start': n[5], 'conn_end': n[6], 'og_cost': n[7], 'arcs': []})
 
@@ -105,13 +104,11 @@ def create_network(clusters):
         ns = n[0]
         ne = n[1]
 
+        nodes[ns]['arcs'].append(counter)
+        nodes[ne]['arcs'].append(counter)
+
         network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'existing': 1, 'len': length, 'enabled': 1})
         counter += 1
-
-    # for every node, add references to every arc that connects to it
-    for arc in network:
-        nodes[arc['ns']]['arcs'].append(arc['i'])
-        nodes[arc['ne']]['arcs'].append(arc['i'])
         
     # set which arcs don't already exist (and the remainder do!)
     for node in nodes:

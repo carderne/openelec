@@ -118,7 +118,7 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None, min
     nodes_list = buildings_points[['X', 'Y', 'area']].reset_index().values.astype(int).tolist()
     nodes = []
     for n in nodes_list:
-        nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'marg_dist': 0, 'tot_dist': 0, 'conn': 0, 'arcs': []})
+        nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'marg_dist': 0, 'conn': 0, 'arcs': []})
     
     mst_points = buildings_points[['X', 'Y']].values
     start_points, end_points, nodes_connected = util.spanning_tree(mst_points, approximate=True)
@@ -135,17 +135,18 @@ def create_network(buildings, specify_gen=False, gen_lat=None, gen_lng=None, min
         ns = n[0]
         ne = n[1]
 
+        nodes[ns]['arcs'].append(counter)
+        nodes[ne]['arcs'].append(counter)
+
         network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'len': length, 'enabled': 1})
         counter += 1
 
-    # for every node, add references to every arc that connects to it
-    for arc in network:
-        nodes[arc['ns']]['arcs'].append(arc['i'])
-        nodes[arc['ne']]['arcs'].append(arc['i'])
-
     # can probably do away with this
     # and just do what national.py does at the modelling stage
-    network, nodes = direct_network(network, nodes, 0, None)
+    # except it is needed for marg_dist
+    network = direct_network(network, nodes, 0, None)
+    for arc in network:
+        nodes[arc['ne']]['marg_dist'] = arc['len']
 
     return network, nodes
 
@@ -193,9 +194,9 @@ def direct_network(network, nodes, index, prev):
             arc['xs'] = xs_new
             arc['ys'] = ys_new
 
-        network, nodes = direct_network(network, nodes, arc['ne'], arc_index) # and investigate downstream from this node
+        network = direct_network(network, nodes, arc['ne'], arc_index) # and investigate downstream from this node
 
-    return network, nodes
+    return network
 
 
 def model(network, nodes, demand, tariff, gen_cost, cost_wire, cost_connection,
