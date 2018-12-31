@@ -5,6 +5,7 @@ util module for openelec
 """
 
 import json
+import requests
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
@@ -92,13 +93,12 @@ def spanning_tree(X, approximate=False):
 
     else:
         n_neighbors = len(X) - 1
-        if n_neighbors < 2:
-            raise ValueError('Need at least three sample points')
+
+    n_neighbors = min(n_neighbors, len(X) - 1)
+    if n_neighbors < 2:
+        raise ValueError('Need at least three sample points')
 
     G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
-
-    # Could save more processing by here pruning arcs that connect connected nodes
-
     full_tree = minimum_spanning_tree(G, overwrite=True)
 
     X = np.asarray(X)
@@ -220,3 +220,54 @@ def properties(row, property_cols):
             prop_dict[col] = 0
         
     return prop_dict
+
+def overpassAsGeojson(bounds):
+    """
+
+    """
+
+    # west = str(bounds[0]);
+    # south = str(bounds[1]);
+    # east = str(bounds[2]);
+    # north = str(bounds[3]);
+    # bounds = south + ', ' + west + ', ' + north + ', ' + east;
+    
+    overpassQuery = 'building'
+    nodeQuery = 'node[' + overpassQuery + '](' + bounds + ');';
+    wayQuery = 'way[' + overpassQuery + '](' + bounds + ');';
+    relationQuery = 'relation[' + overpassQuery + '](' + bounds + ');';
+    query = '?data=[out:json][timeout:15];(' + nodeQuery + wayQuery + relationQuery + ');out body geom;';
+    baseUrl = 'https://overpass-api.de/api/interpreter';
+    resultUrl = baseUrl + query;
+
+    response = requests.get(resultUrl)
+    items = response.json()['elements']
+    geojson = json2geojson(items)
+
+    return geojson
+
+def json2geojson(items):
+    """
+
+    """
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                 "properties": {},
+                 "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [
+                            point['lon'],
+                            point['lat']
+                        ] for point in reversed(feature['geometry'])
+                    ]]
+                }
+            } for feature in items
+        ]
+    }
+    
+    return geojson
