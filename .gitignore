@@ -1,6 +1,7 @@
 stats.ipynb
 test_speed.ipynb
 packaging.txt
+prep_data.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
