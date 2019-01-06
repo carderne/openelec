@@ -16,7 +16,7 @@ A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mi
 
 **Web App usage (click to get proper resolution)**
 
-[![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](https://openelec.surge.sh/index.html#modalVideo)
+[![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](http://openelec.rdrn.me/index.html#modalVideo)
 
 Installation
 --------
