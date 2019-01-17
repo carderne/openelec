@@ -17,7 +17,7 @@ import rasterio
 
 # This is the Africa Albers Equal Area Conic EPSG: 102022
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
-MOLL = {'proj': 'moll', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True}
+MOLLWEIDE = {'proj': 'moll', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True}
 
 def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50,
                   geojson=None, ghs_in=None):
@@ -46,18 +46,15 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
     clusters = gpd.read_file(clusters_file)
     clusters = clusters.to_crs(EPSG102022)
 
-    ### ADDED FOR POSTGIS TEST
     ghs = rasterio.open(ghs_in)
     shape = ghs.read(1).shape
     affine = ghs.transform
-    crs = MOLL
 
     grid = gpd.GeoDataFrame.from_features(geojson, crs={'init': 'epsg:4326'})
 
     clusters = clustering.add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
-                                                shape=shape, affine=affine, raster_crs=crs)
+                                                shape=shape, affine=affine, raster_crs=MOLLWEIDE)
     clusters = clustering.fix_column(clusters, 'grid', factor=1/1000)
-    ### END ADDED FOR POSTGIS TEST
 
     # basic filtering for planning
     clusters['conn_start'] = 0
@@ -67,6 +64,8 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
 
     clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
     clusters = clusters.reset_index().drop(columns=['index'])
+
+    clusters = clusters.to_crs(EPSG102022)
 
     return clusters
 
