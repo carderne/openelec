@@ -46,15 +46,15 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
     clusters = gpd.read_file(clusters_file)
     clusters = clusters.to_crs(EPSG102022)
 
-    ghs = rasterio.open(ghs_in)
-    shape = ghs.read(1).shape
-    affine = ghs.transform
-
-    grid = gpd.GeoDataFrame.from_features(geojson, crs={'init': 'epsg:4326'})
-
-    clusters = clustering.add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
-                                                shape=shape, affine=affine, raster_crs=MOLLWEIDE)
-    clusters = clustering.fix_column(clusters, 'grid', factor=1/1000)
+    if geojson and ghs_in:
+        ghs = rasterio.open(ghs_in)
+        shape = ghs.read(1).shape
+        affine = ghs.transform
+        grid = gpd.GeoDataFrame.from_features(geojson, crs={'init': 'epsg:4326'})
+        clusters = clustering.add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
+                                                    shape=shape, affine=affine, raster_crs=MOLLWEIDE)
+        clusters = clustering.fix_column(clusters, 'grid', factor=1/1000)
+        clusters = clusters.to_crs(EPSG102022)
 
     # basic filtering for planning
     clusters['conn_start'] = 0
@@ -64,8 +64,6 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
 
     clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
     clusters = clusters.reset_index().drop(columns=['index'])
-
-    clusters = clusters.to_crs(EPSG102022)
 
     return clusters
 
