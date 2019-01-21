@@ -3,8 +3,8 @@
 
 openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
-[Web interface running here](https://openelec.surge.sh/)
-(If the server isn't running the interface will work but no data will load.)
+[Web interface running here](https://openelec.me/)  
+Static front-end on AWS S3 with serverless backend on Lambda.
 
 ### National-level
 
