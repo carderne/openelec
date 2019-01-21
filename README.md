@@ -3,20 +3,23 @@
 
 openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
-[Web interface running here](https://openelec.surge.sh/)
-(If the server isn't running the interface will work but no data will load.)
+The library has a currently not very user-friendly Python API for scripting/notebook use.
+There is also a [demonstration web interface running here](https://openelec.me/) (static front-end on AWS S3 with serverless backend on Lambda)
+
 
 ### National-level
 
-A tool for modelling the optimal pathways to improving electricity access. Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
+A tool for modelling the optimal pathways to improving electricity access.  
+Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
 
 ### Town-level
 
-A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) and LV networks using OpenStreetMap building data and a minimum spanning tree approach to network optimisation. Described in my blog post here: [A Flask app for mini-grid planning with a cost-optimised spanning tree](https://rdrn.me/flask-optimize-minigrid/)
+A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids) and LV networks using OpenStreetMap building data and a minimum spanning tree approach to network optimisation.  
+Described in my blog post here: [A Flask app for mini-grid planning with a cost-optimised spanning tree](https://rdrn.me/flask-optimize-minigrid/)
 
 **Web App usage (click to get proper resolution)**
 
-[![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](http://openelec.rdrn.me/index.html#modalVideo)
+[![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](https://openelec.me/index.html#modalVideo)
 
 Installation
 --------
