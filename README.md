@@ -3,7 +3,7 @@
 
 openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
-The library has a currently not very user-friendly Python API for scripting/notebook use.
+The library has a currently not very user-friendly Python API for scripting/notebook use.  
 There is also a [demonstration web interface running here](https://openelec.me/) (static front-end on AWS S3 with serverless backend on Lambda)
 
 
