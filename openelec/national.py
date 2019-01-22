@@ -19,8 +19,7 @@ import rasterio
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 MOLLWEIDE = {'proj': 'moll', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True}
 
-def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50,
-                  grid_geojson=None, shape=None, affine=None):
+def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50):
     """
     Read in the specified clusters file, project, filter on population
     and assign whether currently electrified.
@@ -45,13 +44,6 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
     # Read in the clusters file, convert to desired CRS (ostensibly better for distances) and convert to points, filter on population along the way
     clusters = gpd.read_file(clusters_file)
     clusters = clusters.to_crs(EPSG102022)
-
-    if grid_geojson:
-        grid = gpd.GeoDataFrame.from_features(grid_geojson, crs={'init': 'epsg:4326'})
-        clusters = clustering.add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
-                                               shape=shape, affine=affine, raster_crs=MOLLWEIDE)
-        clusters = clustering.fix_column(clusters, 'grid', factor=1/1000)
-        clusters = clusters.to_crs(EPSG102022)
 
     # basic filtering for planning
     clusters['conn_start'] = 0
