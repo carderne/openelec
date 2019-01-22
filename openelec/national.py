@@ -11,10 +11,13 @@ import geopandas as gpd
 from shapely.geometry import LineString
 from pathlib import Path
 
-from openelec import util
+from openelec import util, clustering
+
+import rasterio
 
 # This is the Africa Albers Equal Area Conic EPSG: 102022
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
+MOLLWEIDE = {'proj': 'moll', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True}
 
 def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50):
     """
