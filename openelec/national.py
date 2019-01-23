@@ -41,6 +41,7 @@ def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_
     """
     # Read in the clusters file, convert to desired CRS (ostensibly better for distances) and convert to points, filter on population along the way
     clusters = gpd.read_file(clusters_file)
+    clusters = clusters.dropna(subset=['geometry'])
     clusters = clusters.to_crs(EPSG102022)
 
     # basic filtering for planning
