@@ -1,7 +1,10 @@
+# national.py
+#!python3
+
 """
 natioanl module for openelec
 
-(c) Chris Arderne
+GPL-3.0 (c) Chris Arderne
 """
 
 from math import sqrt

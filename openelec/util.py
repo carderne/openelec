@@ -1,3 +1,6 @@
+# util.py
+#!python3
+
 """
 util module for openelec
 

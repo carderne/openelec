@@ -1,3 +1,6 @@
+# clustering.py
+#!python3
+
 """
 clusters module for openelec
 
@@ -6,7 +9,7 @@ and convert to discrete vector polgons, each with a set
 population value. Additionally calculate each polygon's
 distance from a provided grid infrastructure vector.
 
-(c) Chris Arderne
+GPL-3.0 (c) Chris Arderne
 """
 
 import json
@@ -171,7 +174,7 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     return clusters
 
 
-def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None, no_neg=True):
+def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None):
     """
     The filter_merge_clusters() process loses the underlying raster values.
     So we need to use rasterstats.zonal_stats() to get it back.
@@ -184,7 +187,7 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
         Either a path to the raster, or an already imported numpy.ndarray with the data.
     operation: str
         The operation to perform when extracting the raster data.
-        Either 'sum' or 'mean'
+        Either 'sum', 'max', or 'mean'
     col_name: str
         Name of the column to add.
     affine: affine.Affine(), optional
@@ -282,6 +285,9 @@ def fix_column(clusters, col_name, factor=1, minimum=0, maximum=None, no_value=N
     if minimum != None:
         clusters.loc[clusters[col_name] < minimum, col_name] = minimum
 
+    if per_capita:
+        clusters[col_name] = clusters[col_name] / clusters['pop']
+
     # apply a cutoff maximum value
     if maximum != None:
         if maximum == 'largest':
@@ -299,9 +305,6 @@ def fix_column(clusters, col_name, factor=1, minimum=0, maximum=None, no_value=N
 
         else:
             raise NotImplementedError('no_value only implemented for "median".')
-
-    if per_capita:
-        clusters[col_name] = clusters[col_name] / clusters['pop']
 
     return clusters
 

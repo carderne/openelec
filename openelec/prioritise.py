@@ -1,7 +1,10 @@
+# prioritise.py
+#!python3
+
 """
 prioritising module for openelec
 
-(c) Chris Arderne
+GPL-3.0 (c) Chris Arderne
 """
 
 from math import sqrt
