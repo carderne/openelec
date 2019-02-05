@@ -16,114 +16,54 @@ from pathlib import Path
 
 from openelec import util
 
-# This is the Africa Albers Equal Area Conic EPSG: 102022
-EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
-MOLLWEIDE = {'proj': 'moll', 'lon_0': 0, 'x_0': 0, 'y_0': 0, 'ellps': 'WGS84', 'units': 'm', 'no_defs': True}
 
-def load_clusters(clusters_file, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50):
+class NationalModel:
+    def __init__(self):
+        """
+
+        """
+        pass
+
+    # io.read_data
+    # baseline
+    # create
+    # model
+    # spatialise
+    # post_process
+    # ...
+
+
+def baseline(targets, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50):
     """
-    Read in the specified clusters file, project, filter on population
-    and assign whether currently electrified.
+    Filter on population and assign whether currently electrified.
 
     Parameters
     ----------
-    clusters_file: file path
-        A geospatial clusters file to be loaded, should be created with clustering module.
-    grid_dist_connected: int, optional
+    targets: GeoDataFrame
+        Loaded targets.
+    grid_dist_connected: int, optional (default 1000.)
         The distance in m from the grid to consider villages already connected.
-    minimum_pop: int, optional
+    minimum_pop: int, optional (default 200.)
         Exclude from analysis villages with less than this pop.
-    min_ntl_connected: int, optional
+    min_ntl_connected: int, optional (default 50.)
         Minimum NTL (night time lights value) to consider a village already connected.
         Range 0-255.
 
     Returns
     -------
-    clusters: GeoDataFrame
-        The processed clusters.
+    targets: GeoDataFrame
+        The processed targets.
     """
-    # Read in the clusters file, convert to desired CRS (ostensibly better for distances) and convert to points, filter on population along the way
-    clusters = gpd.read_file(clusters_file)
-    clusters = clusters.dropna(subset=['geometry'])
-    clusters = clusters.to_crs(EPSG102022)
-
-    # basic filtering for planning
-    clusters['conn_start'] = 0
-    clusters.loc[clusters['grid'] <= grid_dist_connected, 'conn_start'] = 1
-    clusters.loc[clusters['ntl'] <= min_ntl_connected, 'conn_start'] = 0
-    clusters = clusters.loc[clusters['pop'] > minimum_pop]
-
-    clusters = clusters.sort_values('pop', ascending=False)  # so that biggest (and thus connected) city gets index=0
-    clusters = clusters.reset_index().drop(columns=['index'])
-
-    return clusters
-
-
-def create_network(clusters):
-    """
-    We then take all the clusters and calculate the optimum network that connects them all together.
-    We use this to create a graph network of and nodes and arcs representing the clusters and connections.
-
-    Parameters
-    ----------
-    clusters: GeoDataFrame
-        The prepared clusters.
     
-    Returns
-    -------
-    network: list of dicts
-        The network arcs.
-    nodes: list of dicts
-        The network nodes.
-    """
+    targets['conn_start'] = 0
+    targets.loc[targets['grid'] <= grid_dist_connected, 'conn_start'] = 1
+    targets.loc[targets['ntl'] <= min_ntl_connected, 'conn_start'] = 0
+    targets = targets.loc[targets['pop'] > minimum_pop]
 
-    clusters_points = clusters.copy()
-    clusters_points.geometry = clusters_points['geometry'].centroid
-    clusters_points['X'] = clusters_points.geometry.x
-    clusters_points['Y'] = clusters_points.geometry.y
+    targets['conn_end'] = targets['conn_start']
+    targets['og_cost'] = 0
 
-    # This point and line data is then copied into two arrays, called network and nodes,
-    # containing the lines and clusters, respectively. Each element represents a single cluster or joining arc,
-    # and has data within describing the coordinates and more.
-
-    clusters_points['conn_end'] = clusters_points['conn_start']
-    clusters_points['off_grid_cost'] = 0
-
-    nodes_list = clusters_points[['X', 'Y', 'area', 'pop', 'conn_start', 'conn_end', 'off_grid_cost']].reset_index().values.astype(int).tolist()
-    nodes = []
-    for n in nodes_list:
-        nodes.append({'i': n[0], 'x': n[1], 'y': n[2], 'area': n[3], 'pop': n[4], 'conn_start': n[5], 'conn_end': n[6], 'og_cost': n[7], 'arcs': []})
-
-    mst_points = clusters_points[['X', 'Y']].values
-    start_points, end_points, nodes_connected = util.spanning_tree(mst_points, approximate=True)
-
-    counter = 0
-    network = []
-    for s, e, n in zip(start_points, end_points, nodes_connected):
-        xs = int(s[0])
-        ys = int(s[1])
-        xe = int(e[0])
-        ye = int(e[1])
-        length = int(sqrt((xe - xs)**2 + (ye - ys)**2))
-
-        ns = n[0]
-        ne = n[1]
-
-        nodes[ns]['arcs'].append(counter)
-        nodes[ne]['arcs'].append(counter)
-
-        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'existing': 1, 'len': length, 'enabled': 1})
-        counter += 1
-        
-    # set which arcs don't already exist (and the remainder do!)
-    for node in nodes:
-        if node['conn_start'] == 0:
-            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
-            for arc in connected_arcs:
-                arc['existing'] = 0
-                arc['enabled'] = 0
-
-    return network, nodes
+    return targets
 
 
 def model(network, nodes, demand_per_person_kw_peak, mg_gen_cost, mg_dist_cost, grid_mv_cost, grid_lv_cost):
@@ -248,46 +188,37 @@ def model(network, nodes, demand_per_person_kw_peak, mg_gen_cost, mg_dist_cost, 
     return network, nodes
 
 
-def spatialise(network, nodes, clusters):
+def post_process(network, targets):
     """
-    And then do a join to get the results back into GeoDataFrame geometries.
+    Basic filtering and processing on results.
+    Targets 'type' can be one of:
+     - orig: was always connected
+     - new: new grid connection
+     - og: new off-grid connection
+     TODO Add no connection type.
 
     Parameters
     ----------
-    network: list of dicts
-        The optimised network arcs.
-    nodes: list of dicts
-        The optimised network nodes.
-    clusters: GeoDataFrame
-        The original clusters to be joined back into.
+    network, targets : GeoDataFrame
+        Output from model.
 
     Returns
     -------
-    network: GeoDataFrame
-        The optimised network as a GeoDataFrame.
-    clusters: GeoDataFrame
-        The optimised clusters as a GeoDataFrame.
+    network, targets : GeoDataFrame
+        Processed results.
     """
 
-    # prepare nodes and join with original clusters gdf
-    nodes_df = pd.DataFrame(nodes)
-    nodes_df = nodes_df[['conn_end', 'og_cost']]
-    clusters = clusters.merge(nodes_df, how='left', left_index=True, right_index=True)
-    clusters = clusters.to_crs(epsg=4326)
+    # Only keep new network lines created by model
+    # TODO this should happen automatically somewhere else
+    network = network.loc[network['existing'] == 0].loc[network['enabled'] == 1]
 
-    # do the same for the network array
-    network_df = pd.DataFrame(network)
-    network_geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in network]
-    network_gdf = gpd.GeoDataFrame(network_df, crs=EPSG102022, geometry=network_geometry)
-    network_gdf = network_gdf.to_crs(epsg=4326)
-    network = network_gdf.loc[network_gdf['existing'] == 0].loc[network_gdf['enabled'] == 1]
+    # Assign target type based on model results
+    targets['type'] = ''
+    targets.loc[(targets['conn_end'] == 1) & (targets['conn_start'] == 1), 'type'] = 'orig'
+    targets.loc[(targets['conn_end'] == 1) & (targets['conn_start'] == 0), 'type'] = 'new'
+    targets.loc[targets['conn_end'] == 0, 'type'] = 'og'
 
-    clusters['type'] = ''
-    clusters.loc[(clusters['conn_end'] == 1) & (clusters['conn_start'] == 1), 'type'] = 'orig'
-    clusters.loc[(clusters['conn_end'] == 1) & (clusters['conn_start'] == 0), 'type'] = 'new'
-    clusters.loc[clusters['conn_end'] == 0, 'type'] = 'og'
-
-    return network, clusters
+    return network, targets
 
 
 def summary(network, clusters, urban_elec, grid_mv_cost, grid_lv_cost):

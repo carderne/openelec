@@ -1,8 +1,5 @@
-stats.ipynb
-test_speed.ipynb
 packaging.txt
-prep_data.ipynb
-TODO.md
+test_output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

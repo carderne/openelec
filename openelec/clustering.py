@@ -25,6 +25,69 @@ from rasterio.features import shapes, rasterize
 from rasterstats import zonal_stats
 
 
+def prepare_clusters(country, ghs_in, gdp_in, travel_in, ntl_in, aoi_in, grid_in, clusters_out):
+    """
+    Run all.
+    """
+   
+    Path(clusters_out).parents[0].mkdir(parents=True, exist_ok=True)
+
+    print(f'\n\n--- {country} ---\n\n')
+    print('Clipping raster...', end='', flush=True)
+    boundary = gpd.read_file(aoi_in)
+    boundary = boundary.loc[boundary['NAME_0'] == country]
+    clipped, affine, crs = clip_raster(raster=ghs_in, boundary=boundary)
+    print(' -- Shape:', clipped[0].shape)
+    print(' -- Affine:', affine)
+    
+    print('\t\tDone\nCreating clusters...', end='', flush=True)
+    clusters = create_clusters(raster=clipped, affine=affine, crs=crs)
+    
+    print('\t\tDone\nFiltering and merging...', end='', flush=True)
+    # Increase buffer to 500m?
+    clusters = filter_merge_clusters(clusters=clusters, buffer_amount=500)
+    
+    print('\tDone\nGetting population...', end='', flush=True)
+    # Number of people per cluster
+    clusters = add_raster_layer(clusters=clusters, raster=ghs_in, operation='sum', col_name='pop')
+    
+    print('\tDone\nGetting NTL...', end='', flush=True)
+    # Value from -0.1ish to about 30? We cut off negative values to minimum 0
+    clusters = add_raster_layer(clusters=clusters, raster=ntl_in, operation='max', col_name='ntl', crs={'init': 'epsg:4326'})
+    clusters = fix_column(clusters, 'ntl', minimum=0)
+    
+    print('\tDone\nGetting travel...', end='', flush=True)
+    # Travel time to cities, divide by 60m to get hours and replace nan with median
+    clusters = add_raster_layer(clusters=clusters, raster=travel_in, operation='median', col_name='travel')
+    clusters = fix_column(clusters, 'travel', factor=1/60, no_value='median')
+    
+    print('\tDone\nGetting GDP...', end='', flush=True)
+    # Get GDP in USD/capita for each cluster (input is kUSD per cell)
+    clusters = add_raster_layer(clusters=clusters, raster=gdp_in, operation='sum', col_name='gdp')
+    clusters = fix_column(clusters, 'gdp', factor=1000, maximum='largest', no_value='median', per_capita=True)
+    
+    print('\t\tDone\nGetting grid dists...', end='', flush=True)
+    # Get grid distance in km
+    grid = gpd.read_file(grid_in)
+    grid = grid[grid.geometry.intersects(boundary.geometry.unary_union)]
+    clusters = add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
+                                                shape=clipped[0].shape, affine=affine, raster_crs=crs)
+    clusters = fix_column(clusters, 'grid', factor=1/1000)
+    
+    print('\t\tDone\nSimplifying geometry...', end='', flush=True)
+    clusters.geometry = clusters.simplify(tolerance=0.001, preserve_topology=False)
+    
+    print(f'\t\tDone\nSaving to {str(clusters_out)}...', end='', flush=True)
+    clusters['fid'] = clusters.index
+    clusters = clusters.dropna(axis=0, subset=['geometry'])
+    save_clusters(clusters=clusters, out_path=clusters_out)
+    
+    print('\t\tDone')
+    print(f'\nDone {country}')
+    
+    return clusters
+
+
 def clip_raster(raster, boundary, boundary_layer=None):
     """
     Clip the raster to the given administrative boundary.
