@@ -281,7 +281,6 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
 
     else:
         raise NotImplementedError('Only implemented for path input.')
-        #stats = zonal_stats(clusters_proj, raster, affine=affine, stats=operation, nodata=0)
 
 
 def add_vector_layer(clusters, vector, operation, col_name, shape, affine, raster_crs):

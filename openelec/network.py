@@ -49,31 +49,18 @@ def create_network(targets, columns, existing_network=False, directed=False, ori
         The network nodes.
     """
 
-    points = targets.copy()
-    points = points.to_crs(EPSG102022)
+    points = targets.to_crs(EPSG102022)
     points.geometry = points['geometry'].centroid
     points['x'] = points.geometry.x
     points['y'] = points.geometry.y
-
     points = points[columns]
 
-    # If origin not specified, the model defaults to using index 0 as the 'main' point
-    # Thus targets should already have been sorted by population/area with largest first
     if origin:
-      gen_lat = float(origin[0])
-      gen_lng = float(origin[1])
-      pv_point = gpd.GeoDataFrame(crs=EPSG4326, geometry=[Point([gen_lng, gen_lat])])
-      pv_point_projected = pv_point.to_crs(EPSG102022)
-      pv_point_df = [{'x': float(pv_point_projected.geometry.x), 'y': float(pv_point_projected.geometry.y), 'area': 0}]
-      points = pd.concat([pd.DataFrame(pv_point_df), points], ignore_index=True, sort=False)
-      points = points.fillna(value=0)
-
+        points = add_origin(points, origin)
 
     # This point and line data is then copied into two arrays, called network and nodes,
     # containing the lines and clusters, respectively. Each element represents a single cluster or joining arc,
     # and has data within describing the coordinates and more.
-
-    # national columns = ['x', 'y', 'area', 'pop', 'conn_start', 'conn_end', 'og_cost']
     nodes = []
     for index, row in points.iterrows():
         row_dict = row.to_dict()
@@ -84,9 +71,8 @@ def create_network(targets, columns, existing_network=False, directed=False, ori
     mst_points = points[['x', 'y']].values
     start_points, end_points, nodes_connected = spanning_tree(mst_points, approximate=True)
 
-    counter = 0
     network = []
-    for s, e, n in zip(start_points, end_points, nodes_connected):
+    for i, (s, e, n) in enumerate(zip(start_points, end_points, nodes_connected)):
         xs = int(s[0])
         ys = int(s[1])
         xe = int(e[0])
@@ -96,28 +82,16 @@ def create_network(targets, columns, existing_network=False, directed=False, ori
         ns = n[0]
         ne = n[1]
 
-        nodes[ns]['arcs'].append(counter)
-        nodes[ne]['arcs'].append(counter)
+        nodes[ns]['arcs'].append(i)
+        nodes[ne]['arcs'].append(i)
 
-        network.append({'i': counter, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'len': length, 'enabled': 1, 'existing': 1,})
-        counter += 1
+        network.append({'i': i, 'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye, 'ns': ns, 'ne': ne, 'len': length, 'enabled': 1, 'existing': 1,})
     
     if existing_network:
-        # set which arcs don't already exist (and the remainder do!)
-        for node in nodes:
-            if node['conn_start'] == 0:
-                connected_arcs = [network[arc_index] for arc_index in node['arcs']]
-                for arc in connected_arcs:
-                    arc['existing'] = 0
-                    arc['enabled'] = 0
-
+        network = remove_existing(network, nodes)
+        
     if directed:
-        # can probably do away with this
-        # and just do what national.py does at the modelling stage
-        # except it is needed for marg_dist
         network = direct_network(network, nodes, 0, None)
-        for arc in network:
-            nodes[arc['ne']]['marg_dist'] = arc['len']
 
     return network, nodes
 
@@ -168,6 +142,38 @@ def spanning_tree(X, approximate=False):
     return start_points, end_points, nodes_connected
 
 
+def add_origin(points, origin):
+    """
+    If origin not specified, the model defaults to using index 0 as the 'main' point
+    Thus targets should already have been sorted by population/area with largest first
+    """
+
+    gen_lat = float(origin[0])
+    gen_lng = float(origin[1])
+    pv_point = gpd.GeoDataFrame(crs=EPSG4326, geometry=[Point([gen_lng, gen_lat])])
+    pv_point_projected = pv_point.to_crs(EPSG102022)
+    pv_point_df = [{'x': float(pv_point_projected.geometry.x), 'y': float(pv_point_projected.geometry.y), 'area': 0}]
+    points = pd.concat([pd.DataFrame(pv_point_df), points], ignore_index=True, sort=False)
+    points = points.fillna(value=0)
+
+    return points
+
+
+def remove_existing(network, nodes):
+    """
+    Set which arcs don't already exist (and the remainder do!)
+    """
+
+    for node in nodes:
+        if node['conn_start'] == 0:
+            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
+            for arc in connected_arcs:
+                network[arc['i']]['existing'] = 0
+                network[arc['i']]['enabled'] = 0
+    
+    return network
+
+
 def direct_network(network, nodes, index, prev):
     """
     Recursive function to direct the network from the PV point outwards
@@ -212,5 +218,8 @@ def direct_network(network, nodes, index, prev):
             arc['ys'] = ys_new
 
         network = direct_network(network, nodes, arc['ne'], arc_index) # and investigate downstream from this node
+
+    for arc in network:
+        nodes[arc['ne']]['marg_dist'] = arc['len']
 
     return network

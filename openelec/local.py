@@ -15,39 +15,32 @@ from shapely.geometry import Point, LineString
 from math import sqrt
 import geopandas as gpd
 
+from openelec.model import Model
 from openelec import util
 from openelec import io
 from openelec import network
 
-class LocalModel:
+class LocalModel(Model):
     """
-    # model
-    # summary
-    # spatialise
-    # post_process
-    # ...
-    """
+    
+    """    
 
-    def __init__(self, data, min_area=20):
+    def baseline(self, min_area=20):
         """
-        Initialise LocalModel object and read input data.
+        Filter on population and assign whether currently electrified.
 
         Parameters
         ----------
-        data : str, Path or GeoJSON-like
-            Fiona-readable file or GeoJSON representation of polygon features.
+        targets: GeoDataFrame
+            Loaded targets.
         min_area : int, optional (default 20.)
-            Area in m2, below which features will be excluded.
+            Minimum target area in m2.
         """
+        
+        min_area = float(min_area)
+        self.targets = self.targets.loc[self.targets['area'] > min_area]
+        self.targets = self.targets.assign(marg_dist=0, conn=0)
 
-        self.data = data
-        self.targets = io.read_data(data=self.data,
-                                    sort_by='area')
-
-        self.targets = baseline(self.targets, min_area=min_area)
-        self.x_mean = self.targets.geometry.centroid.x.mean()
-        self.y_mean = self.targets.geometry.centroid.y.mean()
-    
     
     def connect_targets(self, origin=None):
         """
@@ -63,45 +56,26 @@ class LocalModel:
 
         columns = ['x', 'y', 'area', 'marg_dist', 'conn']
         self.origin = origin
-        self.network, self.nodes = network.create_network(targets=self.targets,
-                                                          columns=columns,
-                                                          directed=True,
-                                                          origin=self.origin)
-
-
-    def save_to_path(self, path):
-        """
-        Save the resultant network and buildings to GeoJSON files.
-        spatialise() must have been run before.
-
-        Parameters
-        ---------
-        path : str, Path
-            Path to a directory to create GeoJSON files.
-            Will be created if needed, will not prompt on overwrite.
-        """
-
-        io.save_to_path(path, network_out=self.network_gdf, buildings_out=self.buildings_gdf)
+        self.network, self.nodes = network.create_network(self.targets,
+            columns=columns,
+            directed=True,
+            origin=self.origin)
 
 
     def spatialise(self):
         """
-        Convert all model output to GeoDataFrames and GeoJSON objects.
+        Convert all model output to GeoDataFrames.
         """
 
-        self.network_gdf = io.spatialise(self.network, type='line')
+        self.network_out = io.spatialise(self.network, type='line')
         
         # TODO this should happen automatically somewhere else
-        self.network_gdf = self.network_gdf.loc[self.network_gdf['enabled'] == 1]
-        self.network_gdf = self.network_gdf.drop(labels='existing', axis='columns')
+        self.network_out = self.network_out.loc[self.network_out['enabled'] == 1]
+        self.network_out = self.network_out.drop(labels='existing', axis='columns')
 
-        self.network_geojson = io.geojsonify(self.network_gdf)
-
-        self.buildings_gdf = io.merge_geometry(self.nodes, self.targets,
-                                               columns=['conn', 'marg_dist'])
-        self.buildings_geojson = io.geojsonify(self.buildings_gdf,
-                                               property_cols=['area', 'conn'])
-
+        self.targets_out = io.merge_geometry(self.nodes, self.targets,
+                                               columns=['conn', 'marg_dist'])   
+    
 
     def parameters(self, demand, tariff, gen_cost, cost_wire, cost_connection,
                    opex_ratio, years, discount_rate):
@@ -154,20 +128,20 @@ class LocalModel:
         Run the model with the given economic parameters and 
         return the processed network and nodes.
 
+        cut arcs one by one, see which cut is the *most* profitable, and then take that network and repeat the process
+        annual income should be specified by the nodes
+
+        Then we start with the complete network, and try 'deleting' each arc.
+        Whichever deletion is the most profitable, we make it permanent and
+        repeat the process with the new configuration.
+        This continues until there are no more increases in profitability to be had.
+
         Parameters
         ----------
         target_coverage: float, optional
             If provided, model will aim to achieve this level of population coverage,
             rather than optimising on NPV.
         """
-
-        # cut arcs one by one, see which cut is the *most* profitable, and then take that network and repeat the process
-        # annual income should be specified by the nodes
-
-        # Then we start with the complete network, and try 'deleting' each arc.
-        # Whichever deletion is the most profitable, we make it permanent and
-        # repeat the process with the new configuration.
-        # This continues until there are no more increases in profitability to be had.
 
         best_npv = None
         total_arcs = len(self.network)
@@ -194,8 +168,6 @@ class LocalModel:
                 flows = np.ones(self.years) * (income - opex)
                 flows[0] = -capex
                 npv = np.npv(self.discount_rate, flows)
-
-                #print(cost)
                 
                 # check if this is the most profitable yet
                 # TODO this arc[enabled] check is new
@@ -308,31 +280,6 @@ def calculate_profit(network, nodes, index, disabled_arc_index, cost, income_per
                 tariff=tariff)
             
     return network, nodes, cost, income_per_month
-
-
-def baseline(targets, min_area=20):
-    """
-    Filter on population and assign whether currently electrified.
-
-    Parameters
-    ----------
-    targets: GeoDataFrame
-        Loaded targets.
-    min_area : int, optional (default 20.)
-        Minimum target area in m2.
-
-    Returns
-    -------
-    targets: GeoDataFrame
-        The processed targets.
-    """
-    
-    min_area = float(min_area)
-    targets = targets.loc[targets['area'] > min_area]
-
-    targets = targets.assign(marg_dist=0, conn=0)
-
-    return targets
 
                                 
 def connect_houses(network, nodes, index):

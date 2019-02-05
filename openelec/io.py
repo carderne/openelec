@@ -16,6 +16,7 @@ import json
 import requests
 import pandas as pd
 import geopandas as gpd
+import fiona
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 
 EPSG4326 = {'init': 'epsg:4326'}
@@ -23,7 +24,7 @@ EPSG4326 = {'init': 'epsg:4326'}
 EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
 
 
-def read_data(data, sort_by=None):
+def read_data(data):
     """
     Read targets (clusters, buildings) data from a file or other source.
 
@@ -58,14 +59,8 @@ def read_data(data, sort_by=None):
     if not 'area' in targets.columns:
         targets['area'] = targets['geometry'].area
 
-    if sort_by:
-        # Sort with largest building first so that if no gen point specified,
-        # the largest building will be treated as the 'center' of the network
-        targets = targets.sort_values(sort_by, ascending=False)
-
     # project back to WGS84
     targets = targets.to_crs(EPSG4326)
-    targets = targets.reset_index().drop(columns=['index'])
 
     return targets
 
@@ -316,7 +311,8 @@ def json2geojson(items):
 
 def save_to_path(path, **features):
     """
-
+    Save the provided features in the directory specified.
+    File names are taken from the keywords.
     """
 
     if isinstance(path, str):
@@ -327,5 +323,5 @@ def save_to_path(path, **features):
     for name, feature in features.items():
         name = name + '.geojson'
         feature_path = path / name
-
-        feature.to_file(feature_path, driver='GeoJSON')
+        with fiona.Env():
+            feature.to_file(feature_path, driver='GeoJSON')
