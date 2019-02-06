@@ -2,70 +2,104 @@
 #!python3
 
 """
-util module for openelec
-
-(c) Chris Arderne
+Helper functions for models.
 """
 
-import json
-import requests
 import numpy as np
-import pandas as pd
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon
-from math import sqrt
-import geopandas as gpd
-import os.path
-from collections import defaultdict
 
 
-def centroid(file_path):
+def connect_houses(network, nodes, index):
     """
-    Get the centroid of any given file path.
+    Then we disconnect all the houses that are no longer served by active arcs,
+    and prune any stranded arcs that remained on un-connected paths.
+    now we need to tell the houses that aren't connected, that they aren't connected (or vice-versa)
+    recurse from the starting point and ID connected houses as connected?
 
-    Parameters
-    ----------
-    file_path: string
-        File path to a file that GeoPandas can understand.
+    Start from base, follow connection (similar to calculate_profit) and swith node[6] to 1 wherever connected
+    and only follow the paths of connected houses
+    """
+    
+    # this node is connected
+    nodes[index]['conn'] = 1
+    
+    connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
+    for arc in connected_arcs:
+        if arc['enabled'] == 1 and arc['ns'] == index:
+            connect_houses(network, nodes, arc['ne'])
 
-    Returns
-    -------
-    lat, lng: tuple of floats
-        Latitude and longitude in WGS84 decimal degree coordinates.
+    return network, nodes
+            
+    
+def stranded_arcs(network, nodes):
+    """
+    And do the same for the stranded arcs
     """
 
-    gdf = gpd.read_file(file_path)
-    lng = gdf.geometry.centroid.x.mean()
-    lat = gdf.geometry.centroid.y.mean()
+    for node in nodes:
+        if node['conn'] == 0:
+            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
+            for arc in connected_arcs:
+                arc['enabled'] = 0
 
-    return lat, lng
+    return network, nodes
 
 
-def village_centroids(file_dir):
+def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, increment=0.1, max_coverage=0.8):
     """
-    Get list of available villages together with their centroids.
-
-    Parameters
-    ----------
-    file_dir: string
-        The path containing the GeoJSON files to be considered.
-
-    Returns
-    -------
-    villages: dict
-        dict key on village names, each item containng a dict
-        with the centroid {'lat': latitude, 'lng': longitude}.
+    
     """
-    villages = defaultdict(tuple)
+    
+    coverage = np.zeros_like(weight)
+    error = 1
+    add = 0.0
+    loop = 0
 
-    for file in os.listdir(file_dir):
-        if file.endswith('.geojson'):
+    while error > accuracy:
+        count = 0
+        for i in range(len(coverage)):
+            if conn[i]:
+                count += 1
+                if loop == 0:
+                    coverage[i] = weight[i]
+                else:
+                    coverage[i] += add
+                    coverage[i] = min(coverage[i], max_coverage)
 
-            name = os.path.splitext(file)[0]
+                access = (coverage * pop * conn).sum() / pop_tot
+                error = abs(access - target_access)
+                if error <= accuracy:
+                    print(f'Access rate error: {100*error:.0f}%')
+                    break
+        
+        loop += 1        
+        add += increment
 
-            gdf = gpd.read_file(os.path.join(file_dir, file))
-            lng = gdf.geometry.centroid.x.mean()
-            lat = gdf.geometry.centroid.y.mean()
+    return coverage
 
-            villages[name] = {'lat': lat, 'lng': lng}
 
-    return villages
+def assign_coverage(targets, access_rate):
+    """
+    
+    """
+    
+    targets = targets.copy()
+    # total population for calculating access target
+    pop_tot = targets['pop'].sum()
+
+    # calculate a 'weight' for each cell from it's brightness per person
+    # normalized to a scale of 0-1 and limited to second highest value
+    targets['weight'] = targets['ntl'] / targets['pop']
+    targets['weight'] = targets['weight'] / targets['weight'].max()
+    second_highest = targets['weight'].nlargest(2).to_numpy()[1]
+    targets.loc[targets['weight'] > second_highest, 'weight'] = second_highest
+
+    by_weight = targets.sort_values(by='weight', ascending=False)
+    weight = by_weight['weight'].to_numpy(copy=True)
+    pop = by_weight['pop'].to_numpy(copy=True)
+    conn = by_weight['conn_start'].to_numpy(copy=True)
+    
+    coverage = calc_coverage(weight, pop, conn, pop_tot=pop_tot, target_access=access_rate)
+    by_weight['coverage'] = coverage
+    targets = by_weight.sort_values(by='pop', ascending=False)
+    
+    return targets['coverage']

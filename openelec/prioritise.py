@@ -7,12 +7,6 @@ prioritising module for openelec
 GPL-3.0 (c) Chris Arderne
 """
 
-from math import sqrt
-import numpy as np
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import LineString
-from pathlib import Path
 
 def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
              gdp_range=None, travel_range=None):

@@ -7,17 +7,12 @@ natioanl module for openelec
 GPL-3.0 (c) Chris Arderne
 """
 
-from math import sqrt
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import LineString
-from pathlib import Path
 
-from openelec.model import Model
-from openelec import util
-from openelec import io
-from openelec import network
+from .model import Model
+from . import io
+from . import network
+from . import util
 
 
 class NationalModel(Model):
@@ -26,27 +21,61 @@ class NationalModel(Model):
     """
 
 
-    def baseline(self, grid_dist_connected=1000, minimum_pop=200, min_ntl_connected=50):
+    def parameters(self,
+                   demand,
+                   grid_mv_cost, grid_lv_cost, grid_conn_cost, grid_opex_ratio,
+                   mg_gen_cost, mg_lv_cost, mg_conn_cost, mg_opex_ratio,
+                   actual_pop, pop_growth, access_tot, access_urban,
+                   grid_dist_connected=1, minimum_pop=200, min_ntl_connected=0,
+                   gdp_growth=0.02, discount_rate=0.08,
+                   people_per_hh=4, target_access=1):
+        """
+        # TODO Allow to only pass whatever parameters are wanted (e.g. for reruns)
+        Set up model parameters
+        """
+
+        self.demand = float(demand)
+        self.demand_per_person_kw_peak = self.demand / (4*30)  # 130 4hours/day*30days/month based on MTF numbers, should use a real demand curve
+        self.people_per_hh = float(people_per_hh)
+        self.target_access = float(target_access)  # TODO NOT USED
+
+        self.grid_mv_cost = float(grid_mv_cost)
+        self.grid_lv_cost = float(grid_lv_cost)
+        self.grid_conn_cost = float(grid_conn_cost)  # conn cost per household
+        self.grid_opex_ratio = float(grid_opex_ratio)  # TODO NOT USER
+
+        self.mg_gen_cost = float(mg_gen_cost)
+        self.mg_lv_cost = float(mg_lv_cost)
+        self.mg_conn_cost = float(mg_conn_cost)
+        self.mg_opex_ratio = float(mg_opex_ratio)  # TODO NOT USER
+
+        self.actual_pop = float(actual_pop)  # TODO NOT USED
+        self.pop_growth = float(pop_growth)  # TODO NOT USED
+        self.access_tot = float(access_tot)
+        self.access_urban = float(access_urban)
+        # be flexible to inputs as percentage or decimals
+        if self.access_urban >= 1:
+            self.access_urban /= 100
+        if self.access_tot >= 1:
+            self.access_tot /= 100
+
+        self.grid_dist_connected = grid_dist_connected
+        self.minimum_pop = minimum_pop
+        self.min_ntl_connected = min_ntl_connected
+
+        self.discount_rate = float(discount_rate)  # TODO NOT USED
+        self.gdp_growth = float(gdp_growth)  # TODO NOT USED
+
+
+    def baseline(self):
         """
         Filter on population and assign whether currently electrified.
-
-        Parameters
-        ----------
-        targets: GeoDataFrame
-            Loaded targets.
-        grid_dist_connected: int, optional (default 1000.)
-            The distance in m from the grid to consider villages already connected.
-        minimum_pop: int, optional (default 200.)
-            Exclude from analysis villages with less than this pop.
-        min_ntl_connected: int, optional (default 50.)
-            Minimum NTL (night time lights value) to consider a village already connected.
-            Range 0-255.
         """
         
         self.targets = self.targets.assign(conn_start=0, og_cost=0)
-        self.targets.loc[self.targets['grid'] <= grid_dist_connected, 'conn_start'] = 1
-        self.targets.loc[self.targets['ntl'] <= min_ntl_connected, 'conn_start'] = 0
-        self.targets = self.targets.loc[self.targets['pop'] > minimum_pop]
+        self.targets.loc[self.targets['grid'] <= self.grid_dist_connected, 'conn_start'] = 1
+        self.targets.loc[self.targets['ntl'] <= self.min_ntl_connected, 'conn_start'] = 0
+        self.targets = self.targets.loc[self.targets['pop'] > self.minimum_pop]
 
         self.targets['conn_end'] = self.targets['conn_start']
 
@@ -56,7 +85,7 @@ class NationalModel(Model):
         Create an MST connecting the target features.
         """
 
-        columns = ['x', 'y', 'area', 'pop', 'conn_start', 'conn_end', 'og_cost']
+        columns = ['x', 'y', 'area', 'pop', 'demand', 'conn_start', 'conn_end', 'og_cost']
         self.network, self.nodes = network.create_network(self.targets, existing_network=True, 
             columns=columns)
 
@@ -65,9 +94,9 @@ class NationalModel(Model):
         """
         Basic filtering and processing on results.
         Targets 'type' can be one of:
-        - orig: was always connected
-        - new: new grid connection
-        - og: new off-grid connection
+        - densify: was always connected
+        - grid: new grid connection
+        - off-grid: new off-grid connection
         TODO Add no-connection type.
 
         Parameters
@@ -87,28 +116,49 @@ class NationalModel(Model):
 
         # Assign target type based on model results
         self.targets_out['type'] = ''
-        self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 1), 'type'] = 'orig'
-        self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 0), 'type'] = 'new'
-        self.targets_out.loc[self.targets_out['conn_end'] == 0, 'type'] = 'og'
+        self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 1), 'type'] = 'densify'
+        self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 0), 'type'] = 'grid'
+        self.targets_out.loc[self.targets_out['conn_end'] == 0, 'type'] = 'off-grid'
 
 
-    def parameters(self, demand, mg_gen_cost, mg_dist_cost, grid_mv_cost, grid_lv_cost, urban_elec):
+    def initial_access(self):
         """
-        Set up model parameters
+        Calibrate initial electricity access levels (per electrified cluster)
+        to match national statistics.
         """
 
-        self.demand = float(demand)
-        self.demand_per_person_kw_peak = self.demand / (4*30)  # 130 4hours/day*30days/month based on MTF numbers, should use a real demand curve
-        self.mg_gen_cost = float(mg_gen_cost)
-        self.mg_dist_cost = float(mg_dist_cost)
-        self.grid_mv_cost = float(grid_mv_cost)
-        self.grid_lv_cost = float(grid_lv_cost)
+        self.targets['coverage'] = util.assign_coverage(self.targets, access_rate=self.access_tot)
 
-        self.urban_elec = float(urban_elec)
-        # be flexible to inputs as percentage or decimals
-        if self.urban_elec >= 1:
-            self.urban_elec /= 100
 
+    def demand_levels(self, factor=None):
+        """
+        # TODO Add productive use, schools
+        """
+
+        self.targets = self.targets.assign(demand=0)
+
+        if not factor:
+            mtf = {
+                1: 0.36,
+                2: 6,
+                3: 30,
+                4: 102,
+                5: 246
+            }
+
+            q25 = self.targets['gdp'].quantile(0.25)
+            q50 = self.targets['gdp'].quantile(0.25)
+            q75 = self.targets['gdp'].quantile(0.75)
+            
+            self.targets.loc[self.targets['gdp'] >= q75, 'demand'] = mtf[4]
+            self.targets.loc[self.targets['gdp'] < q75, 'demand'] = mtf[3]
+            self.targets.loc[self.targets['gdp'] < q50, 'demand'] = mtf[2]
+            self.targets.loc[self.targets['gdp'] < q25, 'demand'] = mtf[1]
+
+        else:  # calculate directly
+            self.targets['demand'] = factor * np.log(self.targets['gdp'])
+            self.targets.loc[self.targets['demand'] < 0, 'demand'] = 0
+            
 
     def model(self):
         """
@@ -123,9 +173,12 @@ class NationalModel(Model):
         """
 
         # First calcaulte the off-grid cost for each unconnected settlement
+        # TODO incorporate SHS and other options
         for node in self.nodes:
             if node['conn_start'] == 0:
-                node['og_cost'] = node['pop']*self.demand_per_person_kw_peak*self.mg_gen_cost + node['area']*self.mg_dist_cost
+                node['og_cost'] = node['pop']*self.demand_per_person_kw_peak*self.mg_gen_cost + \
+                                    node['area']*self.mg_lv_cost + \
+                                    node['pop']*self.mg_conn_cost / self.people_per_hh
 
         # keep looping until no further connections are added
         while True:
@@ -149,7 +202,8 @@ class NationalModel(Model):
                             best_arcs = [self.network[i] for i in b_arcs]
                             mg_cost = sum([node['og_cost'] for node in best_nodes])
                             grid_cost = (self.grid_mv_cost * sum(arc['len'] for arc in best_arcs) + 
-                                        self.grid_lv_cost * sum([node['area'] for node in best_nodes]))
+                                        self.grid_lv_cost * sum([node['area'] for node in best_nodes]) +
+                                        self.grid_conn_cost * sum([node['pop'] for node in best_nodes])  / self.people_per_hh)
 
                             if grid_cost < mg_cost:
                                 # check if any nodes are already in to_be_connected
@@ -177,60 +231,68 @@ class NationalModel(Model):
             else:
                 break
 
+
     def summary(self):
         """
         Calculate some summary results.
 
-        Parameters
-        ----------
-        network: GeoDataFrame
-            Final network object.
-        clusters: GeoDataFrame
-            Final clusters object.
-        urban_elec: int or float
-            Rate of urban electrification, either as percentage or ratio.
-        grid_mv_cost: int
-            As for model()
-        grid_lv_cost: int
-            As for model()
+        Returns
+        -------
+        results : dict
+            Dict of summary results.
         """
 
-        new = self.targets_out.loc[self.targets_out['type'] == 'new']
-        og = self.targets_out.loc[self.targets_out['type'] == 'og']
-        orig = self.targets_out.loc[self.targets_out['type'] == 'orig']
-        cost = og['og_cost'].sum() + self.grid_mv_cost * self.network_out['len'].sum() + self.grid_lv_cost * new['area'].sum()
+        grid = self.targets_out.loc[self.targets_out['type'] == 'grid']
+        off_grid = self.targets_out.loc[self.targets_out['type'] == 'off-grid']
+        densify = self.targets_out.loc[self.targets_out['type'] == 'densify']
+
+        cost_off_grid = off_grid['og_cost'].sum()
+        cost_grid = self.grid_mv_cost * self.network_out['len'].sum() + \
+                    self.grid_lv_cost * grid['area'].sum() + \
+                    self.grid_conn_cost * grid['pop'].sum() / self.people_per_hh
+        cost_densify = self.grid_lv_cost * (densify['area'] * (1 - densify['coverage'])).sum() + \
+                       self.grid_conn_cost * (densify['pop'] * (1 - densify['coverage'])).sum()
+        cost_tot = cost_off_grid + cost_grid + cost_densify
+
+        model_pop = self.targets_out['pop'].sum()
+        already_elec_pop = (densify['pop'] * densify['coverage']).sum()
+        densify_pop = (densify['pop'] * (1 - densify['coverage'])).sum()
 
         # tags must match those in the config file
         self.results = {
-            'new-conn': len(new),
-            'new-og': len(og),
-            'tot-cost': cost,
-            'model-pop': self.targets_out['pop'].sum(),
-            'orig-conn-pop': orig['pop'].sum() * self.urban_elec,
-            'new-conn-pop': new['pop'].sum(),
-            'new-og-pop': og['pop'].sum()
+            'new-grid': len(grid),
+            'new-off-grid': len(off_grid),
+            'densify': len(densify),
+            'cost-grid': cost_grid,
+            'cost-off-grid': cost_off_grid,
+            'cost-densify': cost_densify,
+            'tot-cost': cost_tot,
+            'model-pop': model_pop,
+            'already-elec-pop': already_elec_pop,
+            'densify-pop': densify_pop,
+            'new-conn-pop': grid['pop'].sum(),
+            'new-og-pop': off_grid['pop'].sum()
         }
 
         return self.results
 
 
-def find_best(network, nodes, index, prev_arc, b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs):
+def find_best(network, nodes, index, prev_arc, b_demand, b_length, b_nodes, b_arcs, c_demand, c_length, c_nodes, c_arcs):
     """
     This function recurses through the network, dragging a current c_ values along with it.
     These aren't returned, so are left untouched by aborted side-branch explorations.
     The best b_ values are returned, and are updated whenever a better configuration is found.
-    Thus these will remmber the best solution including all side meanders.
+    Thus these will remember the best solution including all side meanders.
     """
 
-    # TODO incorporate GDP and other demand factors into pop
     if nodes[index]['conn_end'] == 0:  # don't do anything with already connected nodes
-        c_pop += nodes[index]['pop']
+        c_demand += nodes[index]['demand']
         c_length += network[prev_arc]['len']
         c_nodes = c_nodes[:] + [index]
         c_arcs = c_arcs[:] + [prev_arc]
             
-        if c_pop/c_length > b_pop/b_length:
-            b_pop = c_pop
+        if c_demand/c_length > b_demand/b_length:
+            b_demand = c_demand
             b_length = c_length
             b_nodes[:] = c_nodes[:]
             b_arcs[:] = c_arcs[:]
@@ -240,7 +302,7 @@ def find_best(network, nodes, index, prev_arc, b_pop, b_length, b_nodes, b_arcs,
             if arc['enabled'] == 0 and arc['i'] != prev_arc:
 
                 goto = 'ne' if arc['ns'] == index else 'ns'  # make sure we look at the other end of the arc
-                network, nodes, b_pop, b_length, b_nodes, b_arcs = find_best(
-                    network, nodes, arc[goto], arc['i'], b_pop, b_length, b_nodes, b_arcs, c_pop, c_length, c_nodes, c_arcs)
+                network, nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
+                    network, nodes, arc[goto], arc['i'], b_demand, b_length, b_nodes, b_arcs, c_demand, c_length, c_nodes, c_arcs)
                 
-    return network, nodes, b_pop, b_length, b_nodes, b_arcs
+    return network, nodes, b_demand, b_length, b_nodes, b_arcs

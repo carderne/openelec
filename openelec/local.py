@@ -8,17 +8,13 @@ Tool designed to take a small village and estimate the optimum connections, base
 GPL-3.0 (c) Chris Arderne
 """
 
-import json
 import numpy as np
-import pandas as pd
-from shapely.geometry import Point, LineString
-from math import sqrt
-import geopandas as gpd
 
-from openelec.model import Model
-from openelec import util
-from openelec import io
-from openelec import network
+from .model import Model
+from . import io
+from . import network
+from . import util
+
 
 class LocalModel(Model):
     """
@@ -190,20 +186,17 @@ class LocalModel(Model):
                     if actual_coverage <= target_coverage:
                         break
 
-        self.network, self.nodes = connect_houses(self.network, self.nodes, 0)
-        self.network, self.nodes = stranded_arcs(self.network, self.nodes)
+        self.network, self.nodes = util.connect_houses(self.network, self.nodes, 0)
+        self.network, self.nodes = util.stranded_arcs(self.network, self.nodes)
 
 
     def summary(self):
         """
-        And calculate some quick summary numbers for the village.
-        Needs to be inside model() if I don't want to pass all the
-        parameters around again.
-
+        Calculate some quick summary numbers for the village.
 
         Returns
         -------
-        results: dict
+        results : dict
             Dict of summary results.
         """
 
@@ -282,37 +275,4 @@ def calculate_profit(network, nodes, index, disabled_arc_index, cost, income_per
     return network, nodes, cost, income_per_month
 
                                 
-def connect_houses(network, nodes, index):
-    """
-    Then we disconnect all the houses that are no longer served by active arcs,
-    and prune any stranded arcs that remained on un-connected paths.
-    now we need to tell the houses that aren't connected, that they aren't connected (or vice-versa)
-    recurse from the starting point and ID connected houses as connected?
 
-    Start from base, follow connection (similar to calculate_profit) and swith node[6] to 1 wherever connected
-    and only follow the paths of connected houses
-    """
-    
-    # this node is connected
-    nodes[index]['conn'] = 1
-    
-    connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
-    for arc in connected_arcs:
-        if arc['enabled'] == 1 and arc['ns'] == index:
-            connect_houses(network, nodes, arc['ne'])
-
-    return network, nodes
-            
-    
-def stranded_arcs(network, nodes):
-    """
-    And do the same for the stranded arcs
-    """
-
-    for node in nodes:
-        if node['conn'] == 0:
-            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
-            for arc in connected_arcs:
-                arc['enabled'] = 0
-
-    return network, nodes
