@@ -70,12 +70,56 @@ class NationalModel(Model):
         self.gdp_growth = float(gdp_growth)  # TODO NOT USED
 
 
+    def dynamic(self, steps=5, years_per_step=5):
+        """
+        Work in progress.
+        """
+
+        for s in range(1, steps+1):
+
+            self.demand_levels(factor=5)
+            self.connect_targets()
+            self.model()
+            self.spatialise()
+
+            quant = s/steps
+
+            # fully densify the most highly densified clusters
+            to_densify = self.targets_out.loc[self.targets_out['coverage'] < 1, 'coverage'].quantile(1 - quant)
+            self.targets_out.loc[self.targets_out['coverage'] > to_densify, 'coverage'] = 1
+
+            # grid connect the cheapest x% of grid
+            to_grid = self.targets_out.loc[self.targets_out['type'] == 'grid', 'grid_cost'].quantile(quant)
+            self.targets_out.loc[(self.targets_out['type'] == 'grid') & (self.targets_out['grid_cost'] < to_grid), 'conn_start'] = 1
+            self.targets_out.loc[(self.targets_out['type'] == 'grid') & (self.targets_out['grid_cost'] >= to_grid), 'type'] = 'none'
+
+            # og connect only the cheapest x% of go
+            to_og = self.targets_out.loc[self.targets_out['type'] == 'off-grid', 'og_cost'].quantile(quant)
+            self.targets_out.loc[(self.targets_out['type'] == 'off-grid') & (self.targets_out['og_cost'] >= to_og), 'type'] = 'none'
+
+            # need to disable arcs
+            for i, row in self.targets_out.iterrows():
+                if row['type'] == 'none':
+                    connected_arcs = self.nodes[i]['arcs']
+                    for arc in connected_arcs:
+                        if arc in self.network_out.index:
+                            self.network_out.drop(arc, axis='index')
+
+            self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth) * years_per_step
+            self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth) * years_per_step
+            self.summary()
+
+            yield self.targets_out, self.network_out, self.results
+
+            self.targets = self.targets_out.copy()
+
+
     def baseline(self):
         """
         Filter on population and assign whether currently electrified.
         """
         
-        self.targets = self.targets.assign(conn_start=0, og_cost=0)
+        self.targets = self.targets.assign(conn_start=0, og_cost=0, grid_cost=0)
         self.targets.loc[self.targets['grid'] <= self.grid_dist_connected, 'conn_start'] = 1
         self.targets.loc[self.targets['ntl'] <= self.min_ntl_connected, 'conn_start'] = 0
         self.targets = self.targets.loc[self.targets['pop'] > self.minimum_pop]
@@ -88,7 +132,7 @@ class NationalModel(Model):
         Create an MST connecting the target features.
         """
 
-        columns = ['x', 'y', 'area', 'pop', 'demand', 'conn_start', 'conn_end', 'og_cost']
+        columns = ['x', 'y', 'area', 'pop', 'demand', 'conn_start', 'conn_end', 'og_cost', 'grid_cost']
         self.network, self.nodes = network.create_network(self.targets, existing_network=True, 
             columns=columns)
 
@@ -115,7 +159,7 @@ class NationalModel(Model):
         self.network_out = self.network_out.loc[self.network_out['existing'] == 0].loc[self.network_out['enabled'] == 1]
 
         self.targets_out = io.merge_geometry(self.nodes, self.targets,
-                                             columns=['conn_end', 'og_cost'])
+                                             columns=['conn_end', 'og_cost', 'grid_cost'])
 
         # Assign target type based on model results
         self.targets_out['type'] = ''
@@ -207,14 +251,23 @@ class NationalModel(Model):
                             best_arcs = [self.network[i] for i in b_arcs]
                             mg_cost = sum([node['og_cost'] for node in best_nodes])
 
-                            lv_cost = 0
                             for node in best_nodes:
                                 local_mv, local_lv, transformers = util.calc_lv(node['pop'], node['demand'], self.people_per_hh, node['area'])
-                                lv_cost += local_mv * self.grid_mv_cost + local_lv * self.grid_lv_cost + transformers * self.grid_trans_cost
+                                lv_cost = local_mv * self.grid_mv_cost + local_lv * self.grid_lv_cost + transformers * self.grid_trans_cost
+                                conn_cost = self.grid_conn_cost * node['pop'] / self.people_per_hh
+                                self.nodes[node['i']]['grid_cost'] = lv_cost + conn_cost
 
-                            grid_cost = (self.grid_mv_cost * sum(arc['len'] for arc in best_arcs) + 
-                                         lv_cost +
-                                         self.grid_conn_cost * sum([node['pop'] for node in best_nodes])  / self.people_per_hh)
+                            # The network direction comes before the optimisation
+                            # So it can be either ns or ne that is valid.
+                            best_nodes_indices = [node['i'] for node in best_nodes]
+                            for arc in best_arcs:
+                                if arc['ne'] in best_nodes_indices:
+                                    self.nodes[arc['ne']]['grid_cost'] += self.grid_mv_cost * arc['len']
+                                elif arc['ns'] in best_nodes_indices:
+                                    self.nodes[arc['ns']]['grid_cost'] += self.grid_mv_cost * arc['len']
+                                else:
+                                    raise Exception('This arc isnt connected to best_nodes')
+                            grid_cost = sum(node['grid_cost'] for node in best_nodes)
 
                             if grid_cost < mg_cost:
                                 # check if any nodes are already in to_be_connected
@@ -256,6 +309,7 @@ class NationalModel(Model):
         grid = self.targets_out.loc[self.targets_out['type'] == 'grid']
         off_grid = self.targets_out.loc[self.targets_out['type'] == 'off-grid']
         densify = self.targets_out.loc[self.targets_out['type'] == 'densify']
+        none = self.targets_out.loc[self.targets_out['type'] == 'none']
 
         cost_off_grid = off_grid['og_cost'].sum()
         cost_grid = self.grid_mv_cost * self.network_out['len'].sum() + \
@@ -271,6 +325,7 @@ class NationalModel(Model):
 
         # tags must match those in the config file
         self.results = {
+            'none': len(none),
             'new-grid': len(grid),
             'new-off-grid': len(off_grid),
             'densify': len(densify),
