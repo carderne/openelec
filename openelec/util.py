@@ -5,6 +5,8 @@
 Helper functions for models.
 """
 
+from math import pi, ceil, sqrt
+
 import numpy as np
 
 
@@ -103,3 +105,35 @@ def assign_coverage(targets, access_rate):
     targets = by_weight.sort_values(by='pop', ascending=False)
     
     return targets['coverage']
+
+
+def calc_lv(people, demand, people_per_hh, area):
+    """
+    Calculate LV cost parameters for the given parameters.
+    Everything is in m and m2.
+
+    Parameters
+    ----------
+    """
+
+    hours_per_year = 8760
+    max_transformer_kVA = 50
+    base_to_peak = 0.85                # for the sizing of needed capacity
+    power_factor = 0.9                 # From (1)
+    
+    nodes = people / people_per_hh
+    
+    average_load = people * demand * 12 / hours_per_year
+    peak_kVA = average_load / base_to_peak / power_factor
+    
+    transformers = ceil(peak_kVA/max_transformer_kVA)
+    if transformers <= 0:
+        transformers = 1
+
+    transformer_radius = sqrt((area / transformers) / pi)
+    cluster_radius = sqrt(area / pi)
+    
+    mv_len = 2/3 * cluster_radius *  transformers
+    lv_len = 2/3 * transformer_radius * nodes
+    
+    return mv_len, lv_len, transformers

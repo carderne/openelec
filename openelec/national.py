@@ -23,7 +23,7 @@ class NationalModel(Model):
 
     def parameters(self,
                    demand,
-                   grid_mv_cost, grid_lv_cost, grid_conn_cost, grid_opex_ratio,
+                   grid_mv_cost, grid_lv_cost, grid_trans_cost, grid_conn_cost, grid_opex_ratio,
                    mg_gen_cost, mg_lv_cost, mg_conn_cost, mg_opex_ratio,
                    actual_pop, pop_growth, access_tot, access_urban,
                    grid_dist_connected=1, minimum_pop=200, min_ntl_connected=0,
@@ -35,14 +35,17 @@ class NationalModel(Model):
         """
 
         self.demand = float(demand)
-        self.demand_per_person_kw_peak = self.demand / (4*30)  # 130 4hours/day*30days/month based on MTF numbers, should use a real demand curve
+        self.demand_per_person_kw_peak = self.demand / (4*30)  # 130 4hours/day*30days/month based on MTF numbers
+                                                               # TODO should use a real demand curve
+        
         self.people_per_hh = float(people_per_hh)
         self.target_access = float(target_access)  # TODO NOT USED
 
         self.grid_mv_cost = float(grid_mv_cost)
         self.grid_lv_cost = float(grid_lv_cost)
+        self.grid_trans_cost = float(grid_trans_cost)
         self.grid_conn_cost = float(grid_conn_cost)  # conn cost per household
-        self.grid_opex_ratio = float(grid_opex_ratio)  # TODO NOT USER
+        self.grid_opex_ratio = float(grid_opex_ratio)  # TODO NOT USED
 
         self.mg_gen_cost = float(mg_gen_cost)
         self.mg_lv_cost = float(mg_lv_cost)
@@ -176,8 +179,10 @@ class NationalModel(Model):
         # TODO incorporate SHS and other options
         for node in self.nodes:
             if node['conn_start'] == 0:
+                _, local_lv, _ = util.calc_lv(node['pop'], node['demand'], self.people_per_hh, node['area'])
+
                 node['og_cost'] = node['pop']*self.demand_per_person_kw_peak*self.mg_gen_cost + \
-                                    node['area']*self.mg_lv_cost + \
+                                    local_lv * self.grid_lv_cost + \
                                     node['pop']*self.mg_conn_cost / self.people_per_hh
 
         # keep looping until no further connections are added
@@ -201,9 +206,15 @@ class NationalModel(Model):
                             best_nodes = [self.nodes[i] for i in b_nodes]
                             best_arcs = [self.network[i] for i in b_arcs]
                             mg_cost = sum([node['og_cost'] for node in best_nodes])
+
+                            lv_cost = 0
+                            for node in best_nodes:
+                                local_mv, local_lv, transformers = util.calc_lv(node['pop'], node['demand'], self.people_per_hh, node['area'])
+                                lv_cost += local_mv * self.grid_mv_cost + local_lv * self.grid_lv_cost + transformers * self.grid_trans_cost
+
                             grid_cost = (self.grid_mv_cost * sum(arc['len'] for arc in best_arcs) + 
-                                        self.grid_lv_cost * sum([node['area'] for node in best_nodes]) +
-                                        self.grid_conn_cost * sum([node['pop'] for node in best_nodes])  / self.people_per_hh)
+                                         lv_cost +
+                                         self.grid_conn_cost * sum([node['pop'] for node in best_nodes])  / self.people_per_hh)
 
                             if grid_cost < mg_cost:
                                 # check if any nodes are already in to_be_connected
