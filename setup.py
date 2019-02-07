@@ -9,7 +9,7 @@ national- and local-level analysis.
 
 setup(
     name='openelec',
-    version='0.0.3',
+    version='0.0.4',
     author='Chris Arderne',
     author_email='chris@rdrn.me',
     description='A tool for optimising electricity access pathways',

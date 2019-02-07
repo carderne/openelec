@@ -2,7 +2,8 @@
 #!python3
 
 """
-
+network module of openelec.
+Provides functionality for creating MST and network from input points.
 """
 
 from math import sqrt

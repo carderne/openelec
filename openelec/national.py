@@ -2,7 +2,7 @@
 #!python3
 
 """
-natioanl module for openelec
+national module for openelec
 
 GPL-3.0 (c) Chris Arderne
 """
@@ -18,7 +18,10 @@ from . import util
 
 class NationalModel(Model):
     """
+    Inherits from Model.
+    Goal is to fully merge NationalModel and LocalModel, as they share lots of functionality.
 
+    This class provides most of the functionality for using openelec at the national level.
     """
 
 
@@ -73,7 +76,15 @@ class NationalModel(Model):
 
     def dynamic_combine(self):
         """
+        Run the dyamic model and combine the results into a single set of GeoDataFrames 
+        and a results dict.
 
+        Returns
+        -------
+        targets, network : GeoDataFrames
+            Combined targets and network.
+        results : dict
+            Dict of results keyed on step number.
         """
 
         dynamic_model = self.dynamic(demand_factor=5)
@@ -96,7 +107,26 @@ class NationalModel(Model):
 
     def dynamic(self, steps=4, years_per_step=5, demand_factor=None):
         """
-        Work in progress.
+        Run the model dynamically, splitting into a specified number of steps
+        with a number of years between each one. Creates an iterator that yields
+        results after each step.
+
+        Parameters
+        ----------
+        steps : int, optional (default 4.)
+            Number of steps to use.
+        years_per_step : int, optional (default 5.)
+            Number of years per step.
+        demand_factor : int, optional (default None.)
+            If provided, uses this factor in demand calculations.
+            If None, uses the MTF levels instead.
+        
+        Yields
+        ------
+        targets_out, networks_out : GeoDataFrames
+            The next step of targets and network.
+        results : dict
+            The next step of results.
         """
 
         self.setup(sort_by='pop')
@@ -128,6 +158,7 @@ class NationalModel(Model):
                     #print('Kept', current_new_grid_pop, 'of', new_grid_pop, 'new grid pop')
                     break
 
+                # Find the most expensive node
                 index_most_expensive_node = None
                 most_expensive = 0
                 for node in self.nodes:
@@ -138,18 +169,23 @@ class NationalModel(Model):
                                 most_expensive = cost_per_person
                                 index_most_expensive_node = node['i']
                 
+                # If one is found
                 if index_most_expensive_node:
+                    # Remove the most expensive node
                     self.nodes[index_most_expensive_node]['conn_end'] = 0
 
+                    # Disable the arc that came to it
                     arc_index = self.nodes[index_most_expensive_node]['arcs'][0]
                     self.network[arc_index]['enabled'] = 0
+
+                    # And remove that arc from the node that preceded it
                     if self.network[arc_index]['ne'] == index_most_expensive_node:
                         prev_node = self.network[arc_index]['ns']
                     else:
                         prev_node = self.network[arc_index]['ne']
-
                     self.nodes[prev_node]['arcs'].remove(arc_index)
 
+            # Convert results to GeoDataFrames
             self.spatialise()
 
             quant = s/steps
@@ -157,14 +193,11 @@ class NationalModel(Model):
             to_densify = self.targets_out.loc[self.targets_out['coverage'] < 1, 'coverage'].quantile(1 - quant)
             self.targets_out.loc[self.targets_out['coverage'] >= to_densify, 'coverage'] = 1
 
-            # grid connect the cheapest x% of grid
-            self.targets_out.loc[self.targets_out['type'] == 'grid', 'conn_start'] = 1
-
             # og connect only the cheapest x% of og
             to_og = self.targets_out.loc[self.targets_out['type'] == 'off-grid', 'og_cost'].quantile(quant)
             self.targets_out.loc[(self.targets_out['type'] == 'off-grid') & (self.targets_out['og_cost'] > to_og), 'type'] = 'none'
 
-            # need to disable arcs
+            # Disable arcs that aren't connecting anything
             for i, row in self.targets_out.iterrows():
                 if row['type'] == 'none':
                     connected_arcs = self.nodes[i]['arcs']
@@ -172,11 +205,16 @@ class NationalModel(Model):
                         if arc in self.network_out.index:
                             self.network_out.drop(arc, axis='index')
 
+            # Calculate population and GDP at the end of this step
             self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth * years_per_step) 
             self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth * years_per_step)
             self.summary()
 
+            # Yield results
             yield self.targets_out, self.network_out, self.results
+
+            # And prepare targets for the next run
+            self.targets_out.loc[self.targets_out['type'] == 'grid', 'conn_start'] = 1
             self.targets = self.targets_out.copy()
             self.targets['conn_end'] = self.targets['conn_start']
 

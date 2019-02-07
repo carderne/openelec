@@ -21,6 +21,13 @@ Described in my blog post here: [A Flask app for mini-grid planning with a cost-
 
 [![Web App demo](https://thumbs.gfycat.com/FocusedMasculineLamb-size_restricted.gif)](https://openelec.me/index.html#modalVideo)
 
+Model usage
+--------
+
+To get to grips with the API and steps in the model, open the Jupyter notebook `example.ipynb`. This repository  includes the input data needed to do a test run for Lesotho, so it should be a matter of opening the notebook and running all cells.
+
+It also includes test data for a small village in central Lesotho to run the local version of the model.
+
 Installation
 --------
 
@@ -44,16 +51,11 @@ pip install openelec
 
 **Install from GitHub**
 
-Downloads or clone the repository:
+Download or clone the repository and install the required packages (preferably in a virtual environment):
 
 ```
 git clone https://github.com/carderne/openelec.git
-```
-
-Then ``cd`` into the directory, and install the required packages into a virtual environment:
-
-```
+cd gridfinder
 pip install -r requirements.txt
 ```
-
-Then run ``jupyter notebook`` and open ``minigrid-optimiser.ipynb``  or `electrify.ipynb` to go over the main model usage and API.
+You can run ```./test.sh``` in the directory, which will do an entire run through using the test data and confirm whether everything is set up properly.

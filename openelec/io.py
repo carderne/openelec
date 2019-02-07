@@ -4,9 +4,6 @@
 """
 Module for loading and saving.
 
-Functions:
-- 
-
 GPL-3.0 (c) Chris Arderne
 """
 

@@ -11,4 +11,4 @@
 GPL-3.0 (c) Chris arderne
 """
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'

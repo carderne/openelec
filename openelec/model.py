@@ -2,7 +2,8 @@
 #!python3
 
 """
-
+model module for openelec.
+Provides common functionality for LocalModel and NationalModel.
 """
 
 from . import io
@@ -10,7 +11,7 @@ from . import io
 
 class Model:
     """
-
+    Base class for NationalModel and LocalModel.
     """
         
 

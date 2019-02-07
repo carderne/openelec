@@ -18,7 +18,10 @@ from . import util
 
 class LocalModel(Model):
     """
-    
+    Inherits from Model.
+    Goal is to fully merge NationalModel and LocalModel, as they share lots of functionality.
+
+    This class provides most of the functionality for using openelec at the local level.
     """    
 
     def baseline(self, min_area=20):
