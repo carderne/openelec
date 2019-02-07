@@ -15,6 +15,29 @@ from . import io
 from . import network
 from . import util
 
+DEF_GRID_MV_COST = 50
+DEF_GRID_LV_COST = 3
+DEF_GRID_TRANS_COST = 3500
+DEF_GRID_CONN_COST = 200
+DEF_GRID_OPEX_RATIO = 0.02
+
+DEF_MG_GEN_COST = 4000
+DEF_MG_LV_COST = 2
+DEF_MG_CONN_COST = 100
+DEF_MG_OPEX_RATIO = 0.02
+
+DEF_ACTUAL_POP = 10e6
+DEF_POP_GROWTH = 0.01
+DEF_GDP_GROWTH = 0.02
+DEF_ACCESS_TOT = 0.3
+DEF_ACCESS_URBAN = 0.66
+DEF_ACCESS_TARGET = 1.0
+
+DEF_GRID_DIST_CONNECTED = 2
+DEF_MINIMUM_POP = 100
+DEF_DISCOUNT_RATE = 0.08
+DEF_PEOPLE_PER_HH = 5
+
 
 class NationalModel(Model):
     """
@@ -26,21 +49,28 @@ class NationalModel(Model):
 
 
     def parameters(self,
-                   demand,
-                   grid_mv_cost, grid_lv_cost, grid_trans_cost, grid_conn_cost, grid_opex_ratio,
-                   mg_gen_cost, mg_lv_cost, mg_conn_cost, mg_opex_ratio,
-                   actual_pop, pop_growth, access_tot, access_urban,
-                   grid_dist_connected=1, minimum_pop=200, min_ntl_connected=0,
-                   gdp_growth=0.02, discount_rate=0.08,
-                   people_per_hh=4, target_access=1):
+                   grid_mv_cost=DEF_GRID_MV_COST,
+                   grid_lv_cost=DEF_GRID_LV_COST,
+                   grid_trans_cost=DEF_GRID_TRANS_COST,
+                   grid_conn_cost=DEF_GRID_CONN_COST,
+                   grid_opex_ratio=DEF_GRID_OPEX_RATIO,
+                   mg_gen_cost=DEF_MG_GEN_COST,
+                   mg_lv_cost=DEF_MG_LV_COST,
+                   mg_conn_cost=DEF_MG_CONN_COST,
+                   mg_opex_ratio=DEF_MG_OPEX_RATIO,
+                   actual_pop=DEF_ACTUAL_POP,
+                   pop_growth=DEF_POP_GROWTH,
+                   access_tot=DEF_ACCESS_TOT,
+                   access_urban=DEF_ACCESS_URBAN,
+                   grid_dist_connected=DEF_GRID_DIST_CONNECTED,
+                   minimum_pop=DEF_MINIMUM_POP,
+                   gdp_growth=DEF_GDP_GROWTH,
+                   discount_rate=DEF_DISCOUNT_RATE,
+                   people_per_hh=DEF_PEOPLE_PER_HH,
+                   target_access=DEF_ACCESS_TARGET):
         """
-        # TODO Allow to only pass whatever parameters are wanted (e.g. for reruns)
         Set up model parameters
         """
-
-        self.demand = float(demand)
-        self.demand_per_person_kw_peak = self.demand / (4*30)  # 130 4hours/day*30days/month based on MTF numbers
-                                                               # TODO should use a real demand curve
         
         self.people_per_hh = float(people_per_hh)
         self.target_access = float(target_access)  # TODO NOT USED
@@ -54,12 +84,12 @@ class NationalModel(Model):
         self.mg_gen_cost = float(mg_gen_cost)
         self.mg_lv_cost = float(mg_lv_cost)
         self.mg_conn_cost = float(mg_conn_cost)
-        self.mg_opex_ratio = float(mg_opex_ratio)  # TODO NOT USER
+        self.mg_opex_ratio = float(mg_opex_ratio)  # TODO NOT USED
 
         self.actual_pop = float(actual_pop)  # TODO NOT USED
         self.pop_growth = float(pop_growth)
         self.access_tot = float(access_tot)
-        self.access_urban = float(access_urban)
+        self.access_urban = float(access_urban)  # TODO NOT USED
         # be flexible to inputs as percentage or decimals
         if self.access_urban >= 1:
             self.access_urban /= 100
@@ -68,7 +98,6 @@ class NationalModel(Model):
 
         self.grid_dist_connected = grid_dist_connected
         self.minimum_pop = minimum_pop
-        self.min_ntl_connected = min_ntl_connected
 
         self.discount_rate = float(discount_rate)  # TODO NOT USED
         self.gdp_growth = float(gdp_growth)
@@ -155,7 +184,6 @@ class NationalModel(Model):
             while True:
                 current_new_grid_pop = sum(n['pop'] for n in self.nodes if n['conn_start'] == 0 and n['conn_end'] == 1)
                 if current_new_grid_pop < target_new_grid_pop:
-                    #print('Kept', current_new_grid_pop, 'of', new_grid_pop, 'new grid pop')
                     break
 
                 # Find the most expensive node
@@ -226,7 +254,7 @@ class NationalModel(Model):
         
         self.targets = self.targets.assign(conn_start=0, og_cost=0, grid_cost=0)
         self.targets.loc[self.targets['grid'] <= self.grid_dist_connected, 'conn_start'] = 1
-        self.targets.loc[self.targets['ntl'] <= self.min_ntl_connected, 'conn_start'] = 0
+        # self.targets.loc[self.targets['ntl'] <= self.min_ntl_connected, 'conn_start'] = 0
         self.targets = self.targets.loc[self.targets['pop'] > self.minimum_pop]
 
         self.targets['conn_end'] = self.targets['conn_start']
@@ -285,11 +313,22 @@ class NationalModel(Model):
 
     def demand_levels(self, factor=None):
         """
+        Calculate demand level in kWh/p/month, either from MTF
+        or using a simple formula.
+
         # TODO Add productive use, schools
+
+        Parameters
+        ----------
+        factor : float, optional (default None.)
+            If supplied, use as the factor in the formula:
+            Demand = factor * log(gdp)
+            Otherwise use MTF levels.
         """
 
         self.targets = self.targets.assign(demand=0)
 
+        # assign using MTF levels
         if not factor:
             mtf = {
                 1: 0.36,
@@ -308,7 +347,8 @@ class NationalModel(Model):
             self.targets.loc[self.targets['gdp'] < q50, 'demand'] = mtf[2]
             self.targets.loc[self.targets['gdp'] < q25, 'demand'] = mtf[1]
 
-        else:  # calculate directly
+        # calculate using formula and factor
+        else:  
             self.targets['demand'] = factor * np.log(self.targets['gdp'])
             self.targets.loc[self.targets['demand'] < 0, 'demand'] = 0
             
@@ -330,8 +370,11 @@ class NationalModel(Model):
         for node in self.nodes:
             if node['conn_start'] == 0:
                 _, local_lv, _ = util.calc_lv(node['pop'], node['demand'], self.people_per_hh, node['area'])
+                demand_peak = node['demand'] / (4*30)  # 130 4hours/day*30days/month based on MTF numbers
+                                                       # TODO use a demand curve
 
-                node['og_cost'] = node['pop']*self.demand_per_person_kw_peak*self.mg_gen_cost + \
+                # TODO calculate demand_person_peak from node['demand']
+                node['og_cost'] = node['pop']*demand_peak*self.mg_gen_cost + \
                                     local_lv * self.grid_lv_cost + \
                                     node['pop']*self.mg_conn_cost / self.people_per_hh
 
@@ -388,7 +431,7 @@ class NationalModel(Model):
 
                                 if add:
                                     to_be_connected.append((b_demand/b_length, b_nodes, b_arcs))
-                
+
             # mark all to_be_connected as actually connected
             if len(to_be_connected) >= 1:
                 for item in to_be_connected:
