@@ -90,7 +90,13 @@ def merge_geometry(results, geometry, columns=None):
 
     if columns:
         results_df = results_df[columns]
-        geometry = geometry.drop(columns=columns)
+
+        geom_columns = geometry.columns
+        drop_columns = []
+        for col in columns:
+            if col in geom_columns:
+                drop_columns.append(col)
+        geometry = geometry.drop(columns=drop_columns)
 
     if len(results_df) > len(geometry):
         results_df.index = results_df.index - 1  # to get rid of pv point

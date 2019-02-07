@@ -8,6 +8,7 @@ GPL-3.0 (c) Chris Arderne
 """
 
 import numpy as np
+import pandas as pd
 
 from .model import Model
 from . import io
@@ -53,7 +54,7 @@ class NationalModel(Model):
         self.mg_opex_ratio = float(mg_opex_ratio)  # TODO NOT USER
 
         self.actual_pop = float(actual_pop)  # TODO NOT USED
-        self.pop_growth = float(pop_growth)  # TODO NOT USED
+        self.pop_growth = float(pop_growth)
         self.access_tot = float(access_tot)
         self.access_urban = float(access_urban)
         # be flexible to inputs as percentage or decimals
@@ -67,35 +68,101 @@ class NationalModel(Model):
         self.min_ntl_connected = min_ntl_connected
 
         self.discount_rate = float(discount_rate)  # TODO NOT USED
-        self.gdp_growth = float(gdp_growth)  # TODO NOT USED
+        self.gdp_growth = float(gdp_growth)
+            
+
+    def dynamic_combine(self):
+        """
+
+        """
+
+        dynamic_model = self.dynamic(demand_factor=5)
+
+        targets, network, results = next(dynamic_model)
+        targets['type_1'] = targets['type']
+        network['stage'] = 1
+        results = {1: results}
+
+        count = 2
+        for t, n, r in dynamic_model:
+            targets[f'type_{count}'] = t['type']
+            n['stage'] = count
+            network = pd.concat([network, n], ignore_index=True)
+            results[count] = r
+            count += 1
+
+        return targets, network, results
 
 
-    def dynamic(self, steps=5, years_per_step=5):
+    def dynamic(self, steps=4, years_per_step=5, demand_factor=None):
         """
         Work in progress.
         """
 
+        self.setup(sort_by='pop')
+        self.initial_access()
+
         for s in range(1, steps+1):
 
-            self.demand_levels(factor=5)
+            self.demand_levels(factor=demand_factor)
             self.connect_targets()
             self.model()
+
+            # first remove un-enabled arcs from nodes
+            for arc in self.network:
+                if arc['enabled'] == 0:
+                    for node in self.nodes:
+                        if arc['i'] in node['arcs']:
+                            node['arcs'].remove(arc['i'])
+
+            # starting from the ends, new grid is pruned
+            # starting with most expensive
+            # pruned are set as off-grid, next algorithm will determine which
+            # to keep
+            new_grid_pop = sum(n['pop'] for n in self.nodes if n['conn_start'] == 0 and n['conn_end'] == 1)
+            target_new_grid_pop = 1.1 * new_grid_pop * s/steps
+
+            while True:
+                current_new_grid_pop = sum(n['pop'] for n in self.nodes if n['conn_start'] == 0 and n['conn_end'] == 1)
+                if current_new_grid_pop < target_new_grid_pop:
+                    #print('Kept', current_new_grid_pop, 'of', new_grid_pop, 'new grid pop')
+                    break
+
+                index_most_expensive_node = None
+                most_expensive = 0
+                for node in self.nodes:
+                    if node['conn_start'] == 0 and node['conn_end'] == 1:
+                        if len(node['arcs']) == 1:
+                            cost_per_person = node['grid_cost']/node['pop']
+                            if cost_per_person > most_expensive:
+                                most_expensive = cost_per_person
+                                index_most_expensive_node = node['i']
+                
+                if index_most_expensive_node:
+                    self.nodes[index_most_expensive_node]['conn_end'] = 0
+
+                    arc_index = self.nodes[index_most_expensive_node]['arcs'][0]
+                    self.network[arc_index]['enabled'] = 0
+                    if self.network[arc_index]['ne'] == index_most_expensive_node:
+                        prev_node = self.network[arc_index]['ns']
+                    else:
+                        prev_node = self.network[arc_index]['ne']
+
+                    self.nodes[prev_node]['arcs'].remove(arc_index)
+
             self.spatialise()
 
             quant = s/steps
-
             # fully densify the most highly densified clusters
             to_densify = self.targets_out.loc[self.targets_out['coverage'] < 1, 'coverage'].quantile(1 - quant)
-            self.targets_out.loc[self.targets_out['coverage'] > to_densify, 'coverage'] = 1
+            self.targets_out.loc[self.targets_out['coverage'] >= to_densify, 'coverage'] = 1
 
             # grid connect the cheapest x% of grid
-            to_grid = self.targets_out.loc[self.targets_out['type'] == 'grid', 'grid_cost'].quantile(quant)
-            self.targets_out.loc[(self.targets_out['type'] == 'grid') & (self.targets_out['grid_cost'] < to_grid), 'conn_start'] = 1
-            self.targets_out.loc[(self.targets_out['type'] == 'grid') & (self.targets_out['grid_cost'] >= to_grid), 'type'] = 'none'
+            self.targets_out.loc[self.targets_out['type'] == 'grid', 'conn_start'] = 1
 
-            # og connect only the cheapest x% of go
+            # og connect only the cheapest x% of og
             to_og = self.targets_out.loc[self.targets_out['type'] == 'off-grid', 'og_cost'].quantile(quant)
-            self.targets_out.loc[(self.targets_out['type'] == 'off-grid') & (self.targets_out['og_cost'] >= to_og), 'type'] = 'none'
+            self.targets_out.loc[(self.targets_out['type'] == 'off-grid') & (self.targets_out['og_cost'] > to_og), 'type'] = 'none'
 
             # need to disable arcs
             for i, row in self.targets_out.iterrows():
@@ -105,13 +172,13 @@ class NationalModel(Model):
                         if arc in self.network_out.index:
                             self.network_out.drop(arc, axis='index')
 
-            self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth) * years_per_step
-            self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth) * years_per_step
+            self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth * years_per_step) 
+            self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth * years_per_step)
             self.summary()
 
             yield self.targets_out, self.network_out, self.results
-
             self.targets = self.targets_out.copy()
+            self.targets['conn_end'] = self.targets['conn_start']
 
 
     def baseline(self):
@@ -137,7 +204,7 @@ class NationalModel(Model):
             columns=columns)
 
 
-    def spatialise(self):
+    def spatialise(self, filter_network=True):
         """
         Basic filtering and processing on results.
         Targets 'type' can be one of:
@@ -156,10 +223,11 @@ class NationalModel(Model):
 
         # Only keep new network lines created by model
         # TODO this should happen automatically somewhere else
-        self.network_out = self.network_out.loc[self.network_out['existing'] == 0].loc[self.network_out['enabled'] == 1]
+        if filter_network:
+            self.network_out = self.network_out.loc[self.network_out['existing'] == 0].loc[self.network_out['enabled'] == 1]
 
         self.targets_out = io.merge_geometry(self.nodes, self.targets,
-                                             columns=['conn_end', 'og_cost', 'grid_cost'])
+                                             columns=['i', 'conn_end', 'og_cost', 'grid_cost'])
 
         # Assign target type based on model results
         self.targets_out['type'] = ''
@@ -243,7 +311,7 @@ class NationalModel(Model):
                             goto = 'ne' if arc['ns'] == node['i'] else 'ns'
                             
                             # function call a bit of a mess with all the c_ and b_ values
-                            self.network, self.nodes, b_length, b_pop, b_nodes, b_arcs = find_best(
+                            self.network, self.nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
                                 self.network, self.nodes, arc[goto], arc['i'], 0, 1e-9, [], [], 0, 1e-9, [], [])                
 
                             # calculate the mg and grid costs of the resultant configuration
@@ -274,14 +342,14 @@ class NationalModel(Model):
                                 add = True
                                 for index, item in enumerate(to_be_connected):
                                     if set(b_nodes).intersection(item[1]):
-                                        if b_pop/b_length < item[0]:
+                                        if b_demand/b_length < item[0]:
                                             del to_be_connected[index]
                                         else:
                                             add = False  # if the existing one is better, we don't add the new one
                                         break
 
                                 if add:
-                                    to_be_connected.append((b_pop/b_length, b_nodes, b_arcs))
+                                    to_be_connected.append((b_demand/b_length, b_nodes, b_arcs))
                 
             # mark all to_be_connected as actually connected
             if len(to_be_connected) >= 1:

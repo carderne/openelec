@@ -12,14 +12,6 @@ class Model:
     """
 
     """
-
-
-    def recipe(self):
-        """
-        Run all.
-        """
-
-        pass
         
 
     def __init__(self, data):

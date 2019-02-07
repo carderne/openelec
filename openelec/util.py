@@ -70,7 +70,7 @@ def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, incr
                 access = (coverage * pop * conn).sum() / pop_tot
                 error = abs(access - target_access)
                 if error <= accuracy:
-                    print(f'Access rate error: {100*error:.0f}%')
+                    #print(f'Access rate error: {100*error:.0f}%')
                     break
         
         loop += 1        
