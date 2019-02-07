@@ -194,8 +194,8 @@ class NationalModel(Model):
             self.targets_out.loc[self.targets_out['coverage'] >= to_densify, 'coverage'] = 1
 
             # og connect only the cheapest x% of og
-            to_og = self.targets_out.loc[self.targets_out['type'] == 'off-grid', 'og_cost'].quantile(quant)
-            self.targets_out.loc[(self.targets_out['type'] == 'off-grid') & (self.targets_out['og_cost'] > to_og), 'type'] = 'none'
+            to_og = self.targets_out.loc[self.targets_out['type'] == 'offgrid', 'og_cost'].quantile(quant)
+            self.targets_out.loc[(self.targets_out['type'] == 'offgrid') & (self.targets_out['og_cost'] > to_og), 'type'] = 'none'
 
             # Disable arcs that aren't connecting anything
             for i, row in self.targets_out.iterrows():
@@ -248,7 +248,7 @@ class NationalModel(Model):
         Targets 'type' can be one of:
         - densify: was always connected
         - grid: new grid connection
-        - off-grid: new off-grid connection
+        - offgrid: new off-grid connection
         TODO Add no-connection type.
 
         Parameters
@@ -271,7 +271,7 @@ class NationalModel(Model):
         self.targets_out['type'] = ''
         self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 1), 'type'] = 'densify'
         self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 0), 'type'] = 'grid'
-        self.targets_out.loc[self.targets_out['conn_end'] == 0, 'type'] = 'off-grid'
+        self.targets_out.loc[self.targets_out['conn_end'] == 0, 'type'] = 'offgrid'
 
 
     def initial_access(self):
@@ -413,7 +413,7 @@ class NationalModel(Model):
         """
 
         grid = self.targets_out.loc[self.targets_out['type'] == 'grid']
-        off_grid = self.targets_out.loc[self.targets_out['type'] == 'off-grid']
+        off_grid = self.targets_out.loc[self.targets_out['type'] == 'offgrid']
         densify = self.targets_out.loc[self.targets_out['type'] == 'densify']
         none = self.targets_out.loc[self.targets_out['type'] == 'none']
 
