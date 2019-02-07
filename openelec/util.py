@@ -48,13 +48,35 @@ def stranded_arcs(network, nodes):
 
 def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, increment=0.1, max_coverage=0.8):
     """
-    
+    Estimate coverage levels for the given parameters.
+
+    Parameters
+    ----------
+    weight, pop, conn : numpy arrays
+        Each a column from targets.
+    pop_tot : int
+        Total population.
+    target_access : float
+        Target access rate.
+    accuracy : float, optional (default 0.01.)
+        Acceptable accuracy level.
+    increment : float, optional (default 0.1.)
+        How much to increment each target's coverage level on each loop.
+    max_coverage : float, optional (default 0.8.)
+        Max coverage level for any target.
+
+    Returns
+    -------
+    coverage : numpy array
+        Array of coverage levels of same shape as weight.
     """
     
     coverage = np.zeros_like(weight)
     error = 1
     add = 0.0
     loop = 0
+
+    max_loops = 50
 
     while error > accuracy:
         count = 0
@@ -70,18 +92,20 @@ def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, incr
                 access = (coverage * pop * conn).sum() / pop_tot
                 error = abs(access - target_access)
                 if error <= accuracy:
-                    #print(f'Access rate error: {100*error:.0f}%')
                     break
         
         loop += 1        
         add += increment
+
+        if loop > max_loops:
+            break
 
     return coverage
 
 
 def assign_coverage(targets, access_rate):
     """
-    
+    Estimate level of electricity access for each target.
     """
     
     targets = targets.copy()
@@ -103,7 +127,7 @@ def assign_coverage(targets, access_rate):
     coverage = calc_coverage(weight, pop, conn, pop_tot=pop_tot, target_access=access_rate)
     by_weight['coverage'] = coverage
     targets = by_weight.sort_values(by='pop', ascending=False)
-    
+
     return targets['coverage']
 
 
