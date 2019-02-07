@@ -37,19 +37,19 @@ def prepare_clusters(country, ghs_in, gdp_in, travel_in, ntl_in, aoi_in, grid_in
     boundary = gpd.read_file(aoi_in)
     boundary = boundary.loc[boundary['NAME_0'] == country]
     clipped, affine, crs = clip_raster(raster=ghs_in, boundary=boundary)
-    print(' -- Shape:', clipped[0].shape)
-    print(' -- Affine:', affine)
+    print('\n -- Shape:', clipped[0].shape)
+    print('-- Affine:\n', affine)
     
-    print('\t\tDone\nCreating clusters...', end='', flush=True)
+    print('\t\t\tDone\nCreating clusters...', end='', flush=True)
     clusters = create_clusters(raster=clipped, affine=affine, crs=crs)
     
     print('\t\tDone\nFiltering and merging...', end='', flush=True)
-    # Increase buffer to 500m?
-    clusters = filter_merge_clusters(clusters=clusters, buffer_amount=500)
+    clusters = filter_merge_clusters(clusters=clusters, buffer_amount=200)
     
     print('\tDone\nGetting population...', end='', flush=True)
     # Number of people per cluster
     clusters = add_raster_layer(clusters=clusters, raster=ghs_in, operation='sum', col_name='pop')
+    clusters = fix_column(clusters, 'pop', minimum=0)
     
     print('\tDone\nGetting NTL...', end='', flush=True)
     # Value from -0.1ish to about 30? We cut off negative values to minimum 0
