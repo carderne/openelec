@@ -43,6 +43,13 @@ openelec requires Python >= 3.5 with the following packages installed:
 - ``scipy`` >= 1.0.0
 - ``scikit-learn`` >= 0.17.1
 
+Additionally these packages are needed for running the Jupyter notebook:
+
+- ``matplotlib``
+- ``jupyter``
+- ``folium``
+- ``descartes``
+
 **Install with pip**
 
 ```
