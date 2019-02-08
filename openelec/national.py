@@ -37,6 +37,8 @@ DEF_GRID_DIST_CONNECTED = 2
 DEF_MINIMUM_POP = 100
 DEF_DISCOUNT_RATE = 0.08
 DEF_PEOPLE_PER_HH = 5
+DEF_DEMAND_FACTOR = 5
+DEF_USE_MTF = False
 
 
 class NationalModel(Model):
@@ -67,7 +69,9 @@ class NationalModel(Model):
                    gdp_growth=DEF_GDP_GROWTH,
                    discount_rate=DEF_DISCOUNT_RATE,
                    people_per_hh=DEF_PEOPLE_PER_HH,
-                   target_access=DEF_ACCESS_TARGET):
+                   target_access=DEF_ACCESS_TARGET,
+                   demand_factor=DEF_DEMAND_FACTOR,
+                   use_mtf=DEF_USE_MTF):
         """
         Set up model parameters
         """
@@ -101,6 +105,8 @@ class NationalModel(Model):
 
         self.discount_rate = float(discount_rate)  # TODO NOT USED
         self.gdp_growth = float(gdp_growth)
+        self.demand_factor = float(demand_factor)
+        self.use_mtf = use_mtf
             
 
     def dynamic_combine(self):
@@ -116,7 +122,7 @@ class NationalModel(Model):
             Dict of results keyed on step number.
         """
 
-        dynamic_model = self.dynamic(demand_factor=5)
+        dynamic_model = self.dynamic()
 
         targets, network, results = next(dynamic_model)
         targets['type_1'] = targets['type']
@@ -134,7 +140,7 @@ class NationalModel(Model):
         return targets, network, results
 
 
-    def dynamic(self, steps=4, years_per_step=5, demand_factor=None):
+    def dynamic(self, steps=4, years_per_step=5):
         """
         Run the model dynamically, splitting into a specified number of steps
         with a number of years between each one. Creates an iterator that yields
@@ -163,7 +169,7 @@ class NationalModel(Model):
 
         for s in range(1, steps+1):
 
-            self.demand_levels(factor=demand_factor)
+            self.demand_levels()
             self.connect_targets()
             self.model()
 
@@ -216,12 +222,8 @@ class NationalModel(Model):
             # Convert results to GeoDataFrames
             self.spatialise()
 
-            quant = s/steps
-            # fully densify the most highly densified clusters
-            to_densify = self.targets_out.loc[self.targets_out['coverage'] < 1, 'coverage'].quantile(1 - quant)
-            self.targets_out.loc[self.targets_out['coverage'] >= to_densify, 'coverage'] = 1
-
             # og connect only the cheapest x% of og
+            quant = s/steps
             to_og = self.targets_out.loc[self.targets_out['type'] == 'offgrid', 'og_cost'].quantile(quant)
             self.targets_out.loc[(self.targets_out['type'] == 'offgrid') & (self.targets_out['og_cost'] > to_og), 'type'] = 'none'
 
@@ -236,13 +238,21 @@ class NationalModel(Model):
             # Calculate population and GDP at the end of this step
             self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth * years_per_step) 
             self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth * years_per_step)
-            self.summary()
+            
+
+            # fully densify the most highly densified clusters
+            to_densify = self.targets_out.loc[(self.targets_out['coverage'] < 1) & (self.targets_out['type'] == 'densify'), 'coverage'].quantile(1 - quant)
+            self.summary(to_densify=to_densify)
+            self.targets_out.loc[(self.targets_out['coverage'] >= to_densify) & (self.targets_out['type'] == 'densify'), 'coverage'] = 1
 
             # Yield results
             yield self.targets_out, self.network_out, self.results
 
             # And prepare targets for the next run
             self.targets_out.loc[self.targets_out['type'] == 'grid', 'conn_start'] = 1
+
+             # newly connected get full coverage, might be better to run assign_coverage again
+            self.targets_out.loc[self.targets_out['type'] == 'grid', 'coverage'] = 1
             self.targets = self.targets_out.copy()
             self.targets['conn_end'] = self.targets['conn_start']
 
@@ -311,25 +321,18 @@ class NationalModel(Model):
         self.targets['coverage'] = util.assign_coverage(self.targets, access_rate=self.access_tot)
 
 
-    def demand_levels(self, factor=None):
+    def demand_levels(self):
         """
         Calculate demand level in kWh/p/month, either from MTF
         or using a simple formula.
 
         # TODO Add productive use, schools
-
-        Parameters
-        ----------
-        factor : float, optional (default None.)
-            If supplied, use as the factor in the formula:
-            Demand = factor * log(gdp)
-            Otherwise use MTF levels.
         """
 
         self.targets = self.targets.assign(demand=0)
 
         # assign using MTF levels
-        if not factor:
+        if self.use_mtf:
             mtf = {
                 1: 0.36,
                 2: 6,
@@ -349,7 +352,7 @@ class NationalModel(Model):
 
         # calculate using formula and factor
         else:  
-            self.targets['demand'] = factor * np.log(self.targets['gdp'])
+            self.targets['demand'] = self.demand_factor * np.log(self.targets['gdp'])
             self.targets.loc[self.targets['demand'] < 0, 'demand'] = 0
             
 
@@ -445,7 +448,7 @@ class NationalModel(Model):
                 break
 
 
-    def summary(self):
+    def summary(self, to_densify=None):
         """
         Calculate some summary results.
 
@@ -457,8 +460,12 @@ class NationalModel(Model):
 
         grid = self.targets_out.loc[self.targets_out['type'] == 'grid']
         off_grid = self.targets_out.loc[self.targets_out['type'] == 'offgrid']
-        densify = self.targets_out.loc[self.targets_out['type'] == 'densify']
         none = self.targets_out.loc[self.targets_out['type'] == 'none']
+
+        densify = self.targets_out.loc[self.targets_out['type'] == 'densify']
+        if to_densify:
+            densify = densify.loc[self.targets_out['coverage'] >= to_densify]
+
 
         cost_off_grid = off_grid['og_cost'].sum()
         cost_grid = self.grid_mv_cost * self.network_out['len'].sum() + \
