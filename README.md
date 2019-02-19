@@ -1,5 +1,7 @@
 # openelec
-[![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec) [![PyPI version](https://badge.fury.io/py/openelec.svg)](https://badge.fury.io/py/openelec) 
+[![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec) [![PyPI version](https://badge.fury.io/py/openelec.svg)](https://badge.fury.io/py/openelec) [![Documentation Status](https://readthedocs.org/projects/openelec-docs/badge/?version=latest)](https://openelec-docs.readthedocs.io/en/latest/?badge=latest)
+
+Documentation: https://openelec-docs.readthedocs.io/en/latest/
 
 openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
@@ -22,14 +24,14 @@ Described in my blog post here: [A Flask app for mini-grid planning with a cost-
 [![Web App demo](https://thumbs.gfycat.com/SlimyNarrowFrigatebird-size_restricted.gif)](https://openelec.me/index.html#modalVideo)
 
 Model usage
---------
+-----------
 
 To get to grips with the API and steps in the model, open the Jupyter notebook `example.ipynb`. This repository  includes the input data needed to do a test run for Lesotho, so it should be a matter of opening the notebook and running all cells.
 
 It also includes test data for a small village in central Lesotho to run the local version of the model.
 
 Installation
---------
+------------
 
 **Requirements**
 
