@@ -10,6 +10,8 @@ Welcome to openelec's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   reference
+
 openelec is a general tool for finding opportunities in electricity access.
 Able to create national-level plans for achieving universal electricity access,
 as well as optimise town/village-level mini-grid, densification and standalone
@@ -17,22 +19,24 @@ systems. In addition, the tool provides functionality to find private-sector
 off-grid opportunities.
 
 The library has a slowly improving Python API for scripting/notebook use.
-There is also a [demonstration web interface running here](https://openelec.me/)
+There is also a `demonstration web interface running here <https://openelec.me/>`_
 (static front-end on AWS S3 with serverless backend on Lambda)
 
 **National level**
 A tool for modelling the optimal pathways to improving electricity access.
-Described in my blog post here: [Modelling the optimum way to achieve universal electrification](https://rdrn.me/modelling-universal-electrification/)
+Described in my blog post here: `Modelling the optimum way to achieve universal electrification <https://rdrn.me/modelling-universal-electrification/>`_
 
 **Local level**
-A tool for optimising rural [mini-grid systems](https://energypedia.info/wiki/Mini_Grids)
+A tool for optimising rural `mini-grid systems <https://energypedia.info/wiki/Mini_Grids>`_
 and LV networks using OpenStreetMap building data and a minimum spanning tree
 approach to network optimisation. Described in my blog post here:
-[A Flask app for mini-grid planning with a cost-optimised spanning tree](https://rdrn.me/flask-optimize-minigrid/)
+`A Flask app for mini-grid planning with a cost-optimised spanning tree <https://rdrn.me/flask-optimize-minigrid/>`_
 
 **Web App usage (click to get proper resolution)**
 
-[![Web App demo](https://thumbs.gfycat.com/SlimyNarrowFrigatebird-size_restricted.gif)](https://openelec.me/index.html#modalVideo)
+.. figure:: https://thumbs.gfycat.com/SlimyNarrowFrigatebird-size_restricted.gif
+   :alt: Web App demo
+   :target: https://openelec.me/index.html#modalVideo
 
 Model usage
 ===========
@@ -69,21 +73,21 @@ Additionally these packages are needed for running the Jupyter notebook:
 
 **Install with pip**
 
-```
+``
 pip install openelec
-```
+``
 
 **Install from GitHub**
 
 Download or clone the repository and install the required packages
 (preferably in a virtual environment):
 
-```
+``
 git clone https://github.com/carderne/openelec.git
 cd gridfinder
 pip install -r requirements.txt
-```
-You can run ```./test.sh``` in the directory, which will do an entire run
+``
+You can run ``./test.sh`` in the directory, which will do an entire run
 through using the test data and confirm whether everything is set up properly.
 
 
