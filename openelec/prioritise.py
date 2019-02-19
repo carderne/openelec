@@ -1,5 +1,5 @@
-# prioritise.py
 #!python3
+# prioritise.py
 
 """
 prioritising module for openelec
@@ -36,7 +36,6 @@ def priority(clusters, pop_range=None, grid_range=None, ntl_range=None,
     clusters['consider'] = 1
     if pop_range:
         clusters.loc[~clusters['pop'].between(pop_range[0], pop_range[1]), 'consider'] = 0
-
     if grid_range:
         clusters.loc[~clusters['grid'].between(grid_range[0], grid_range[1]), 'consider'] = 0
     if ntl_range:

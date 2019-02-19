@@ -1,5 +1,5 @@
-# national.py
 #!python3
+# national.py
 
 """
 national module for openelec
@@ -44,11 +44,12 @@ DEF_USE_MTF = False
 class NationalModel(Model):
     """
     Inherits from Model.
-    Goal is to fully merge NationalModel and LocalModel, as they share lots of functionality.
+    Goal is to fully merge NationalModel and LocalModel,
+    as they share lots of functionality.
 
-    This class provides most of the functionality for using openelec at the national level.
+    This class provides most of the functionality for using openelec
+    at the national level.
     """
-
 
     def parameters(self,
                    grid_mv_cost=DEF_GRID_MV_COST,
@@ -75,7 +76,7 @@ class NationalModel(Model):
         """
         Set up model parameters
         """
-        
+
         self.people_per_hh = float(people_per_hh)
         self.target_access = float(target_access)  # TODO NOT USED
 
@@ -107,12 +108,11 @@ class NationalModel(Model):
         self.gdp_growth = float(gdp_growth)
         self.demand_factor = float(demand_factor)
         self.use_mtf = use_mtf
-            
 
     def dynamic_combine(self):
         """
-        Run the dyamic model and combine the results into a single set of GeoDataFrames 
-        and a results dict.
+        Run the dyamic model and combine the results into a
+        single set of GeoDataFrames and a results dict.
 
         Returns
         -------
@@ -139,12 +139,11 @@ class NationalModel(Model):
 
         return targets, network, results
 
-
     def dynamic(self, steps=4, years_per_step=5):
         """
         Run the model dynamically, splitting into a specified number of steps
-        with a number of years between each one. Creates an iterator that yields
-        results after each step.
+        with a number of years between each one.
+        Creates an iterator that yields results after each step.
 
         Parameters
         ----------
@@ -155,7 +154,7 @@ class NationalModel(Model):
         demand_factor : int, optional (default None.)
             If provided, uses this factor in demand calculations.
             If None, uses the MTF levels instead.
-        
+
         Yields
         ------
         targets_out, networks_out : GeoDataFrames
@@ -202,7 +201,7 @@ class NationalModel(Model):
                             if cost_per_person > most_expensive:
                                 most_expensive = cost_per_person
                                 index_most_expensive_node = node['i']
-                
+
                 # If one is found
                 if index_most_expensive_node:
                     # Remove the most expensive node
@@ -236,9 +235,8 @@ class NationalModel(Model):
                             self.network_out.drop(arc, axis='index')
 
             # Calculate population and GDP at the end of this step
-            self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth * years_per_step) 
+            self.targets_out['pop'] = self.targets_out['pop'] * (1 + self.pop_growth * years_per_step)
             self.targets_out['gdp'] = self.targets_out['gdp'] * (1 + self.gdp_growth * years_per_step)
-            
 
             # fully densify the most highly densified clusters
             to_densify = self.targets_out.loc[(self.targets_out['coverage'] < 1) & (self.targets_out['type'] == 'densify'), 'coverage'].quantile(1 - quant)
@@ -251,34 +249,32 @@ class NationalModel(Model):
             # And prepare targets for the next run
             self.targets_out.loc[self.targets_out['type'] == 'grid', 'conn_start'] = 1
 
-             # newly connected get full coverage, might be better to run assign_coverage again
+            # newly connected get full coverage, might be better
+            # to run assign_coverage again
             self.targets_out.loc[self.targets_out['type'] == 'grid', 'coverage'] = 1
             self.targets = self.targets_out.copy()
             self.targets['conn_end'] = self.targets['conn_start']
-
 
     def baseline(self):
         """
         Filter on population and assign whether currently electrified.
         """
-        
+
         self.targets = self.targets.assign(conn_start=0, og_cost=0, grid_cost=0)
         self.targets.loc[self.targets['grid'] <= self.grid_dist_connected, 'conn_start'] = 1
-        # self.targets.loc[self.targets['ntl'] <= self.min_ntl_connected, 'conn_start'] = 0
         self.targets = self.targets.loc[self.targets['pop'] > self.minimum_pop]
 
         self.targets['conn_end'] = self.targets['conn_start']
-
 
     def connect_targets(self):
         """
         Create an MST connecting the target features.
         """
 
-        columns = ['x', 'y', 'area', 'pop', 'demand', 'conn_start', 'conn_end', 'og_cost', 'grid_cost']
-        self.network, self.nodes = network.create_network(self.targets, existing_network=True, 
-            columns=columns)
-
+        columns = ['x', 'y', 'area', 'pop', 'demand', 'conn_start',
+                   'conn_end', 'og_cost', 'grid_cost']
+        self.network, self.nodes = network.create_network(
+            self.targets, existing_network=True, columns=columns)
 
     def spatialise(self, filter_network=True):
         """
@@ -303,7 +299,8 @@ class NationalModel(Model):
             self.network_out = self.network_out.loc[self.network_out['existing'] == 0].loc[self.network_out['enabled'] == 1]
 
         self.targets_out = io.merge_geometry(self.nodes, self.targets,
-                                             columns=['i', 'conn_end', 'og_cost', 'grid_cost'])
+                                             columns=['i', 'conn_end',
+                                                      'og_cost', 'grid_cost'])
 
         # Assign target type based on model results
         self.targets_out['type'] = ''
@@ -311,15 +308,14 @@ class NationalModel(Model):
         self.targets_out.loc[(self.targets_out['conn_end'] == 1) & (self.targets_out['conn_start'] == 0), 'type'] = 'grid'
         self.targets_out.loc[self.targets_out['conn_end'] == 0, 'type'] = 'offgrid'
 
-
     def initial_access(self):
         """
         Calibrate initial electricity access levels (per electrified cluster)
         to match national statistics.
         """
 
-        self.targets['coverage'] = util.assign_coverage(self.targets, access_rate=self.access_tot)
-
+        self.targets['coverage'] = util.assign_coverage(
+            self.targets, access_rate=self.access_tot)
 
     def demand_levels(self):
         """
@@ -344,17 +340,16 @@ class NationalModel(Model):
             q25 = self.targets['gdp'].quantile(0.25)
             q50 = self.targets['gdp'].quantile(0.25)
             q75 = self.targets['gdp'].quantile(0.75)
-            
+
             self.targets.loc[self.targets['gdp'] >= q75, 'demand'] = mtf[4]
             self.targets.loc[self.targets['gdp'] < q75, 'demand'] = mtf[3]
             self.targets.loc[self.targets['gdp'] < q50, 'demand'] = mtf[2]
             self.targets.loc[self.targets['gdp'] < q25, 'demand'] = mtf[1]
 
         # calculate using formula and factor
-        else:  
+        else:
             self.targets['demand'] = self.demand_factor * np.log(self.targets['gdp'])
             self.targets.loc[self.targets['demand'] < 0, 'demand'] = 0
-            
 
     def model(self):
         """
@@ -372,33 +367,37 @@ class NationalModel(Model):
         # TODO incorporate SHS and other options
         for node in self.nodes:
             if node['conn_start'] == 0:
-                _, local_lv, _ = util.calc_lv(node['pop'], node['demand'], self.people_per_hh, node['area'])
-                demand_peak = node['demand'] / (4*30)  # 130 4hours/day*30days/month based on MTF numbers
-                                                       # TODO use a demand curve
+                _, local_lv, _ = util.calc_lv(node['pop'], node['demand'],
+                                              self.people_per_hh, node['area'])
+                # 130 4hours/day*30days/month based on MTF numbers
+                # TODO use a demand curve
+                demand_peak = node['demand'] / (4*30)
 
                 # TODO calculate demand_person_peak from node['demand']
                 node['og_cost'] = node['pop']*demand_peak*self.mg_gen_cost + \
-                                    local_lv * self.grid_lv_cost + \
-                                    node['pop']*self.mg_conn_cost / self.people_per_hh
+                    local_lv * self.grid_lv_cost + \
+                    node['pop']*self.mg_conn_cost / self.people_per_hh
 
         # keep looping until no further connections are added
         while True:
             to_be_connected = []
-            
+
             for node in self.nodes:
                 # only start searches from currently connected nodes
                 if node['conn_end'] == 1:
-                    
+
                     connected_arcs = [self.network[arc_index] for arc_index in node['arcs']]
                     for arc in connected_arcs:
                         if arc['enabled'] == 0:
                             goto = 'ne' if arc['ns'] == node['i'] else 'ns'
-                            
-                            # function call a bit of a mess with all the c_ and b_ values
-                            self.network, self.nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
-                                self.network, self.nodes, arc[goto], arc['i'], 0, 1e-9, [], [], 0, 1e-9, [], [])                
 
-                            # calculate the mg and grid costs of the resultant configuration
+                            # function call a bit of a mess with all
+                            # the c_ and b_ values
+                            self.network, self.nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
+                                self.network, self.nodes, arc[goto], arc['i'], 0, 1e-9, [], [], 0, 1e-9, [], [])
+
+                            # calculate the mg and grid costs of the
+                            # resultant configuration
                             best_nodes = [self.nodes[i] for i in b_nodes]
                             best_arcs = [self.network[i] for i in b_arcs]
                             mg_cost = sum([node['og_cost'] for node in best_nodes])
@@ -429,7 +428,8 @@ class NationalModel(Model):
                                         if b_demand/b_length < item[0]:
                                             del to_be_connected[index]
                                         else:
-                                            add = False  # if the existing one is better, we don't add the new one
+                                            # if the existing one is better, we don't add the new one
+                                            add = False
                                         break
 
                                 if add:
@@ -442,11 +442,10 @@ class NationalModel(Model):
                         self.nodes[node]['conn_end'] = 1
                     for arc in item[2]:
                         self.network[arc]['enabled'] = 1
-            
+
             # exit the loop once nothing is added
             else:
                 break
-
 
     def summary(self, to_densify=None):
         """
@@ -466,13 +465,12 @@ class NationalModel(Model):
         if to_densify:
             densify = densify.loc[self.targets_out['coverage'] >= to_densify]
 
-
         cost_off_grid = off_grid['og_cost'].sum()
         cost_grid = self.grid_mv_cost * self.network_out['len'].sum() + \
-                    self.grid_lv_cost * grid['area'].sum() + \
-                    self.grid_conn_cost * grid['pop'].sum() / self.people_per_hh
+            self.grid_lv_cost * grid['area'].sum() + \
+            self.grid_conn_cost * grid['pop'].sum() / self.people_per_hh
         cost_densify = self.grid_lv_cost * (densify['area'] * (1 - densify['coverage'])).sum() + \
-                       self.grid_conn_cost * (densify['pop'] * (1 - densify['coverage'])).sum()
+            self.grid_conn_cost * (densify['pop'] * (1 - densify['coverage'])).sum()
         cost_tot = cost_off_grid + cost_grid + cost_densify
 
         model_pop = self.targets_out['pop'].sum()
@@ -499,32 +497,35 @@ class NationalModel(Model):
         return self.results
 
 
-def find_best(network, nodes, index, prev_arc, b_demand, b_length, b_nodes, b_arcs, c_demand, c_length, c_nodes, c_arcs):
+def find_best(network, nodes, index, prev_arc, b_demand, b_length, b_nodes,
+              b_arcs, c_demand, c_length, c_nodes, c_arcs):
     """
-    This function recurses through the network, dragging a current c_ values along with it.
-    These aren't returned, so are left untouched by aborted side-branch explorations.
-    The best b_ values are returned, and are updated whenever a better configuration is found.
+    This function recurses the network, bringing current c_ values with it.
+    These aren't returned, so are left untouched side-branch explorations.
+    The b_ values are returned, and updated when a better configuration found.
     Thus these will remember the best solution including all side meanders.
     """
 
-    if nodes[index]['conn_end'] == 0:  # don't do anything with already connected nodes
+    # don't do anything with already connected nodes
+    if nodes[index]['conn_end'] == 0:
         c_demand += nodes[index]['demand']
         c_length += network[prev_arc]['len']
         c_nodes = c_nodes[:] + [index]
         c_arcs = c_arcs[:] + [prev_arc]
-            
+
         if c_demand/c_length > b_demand/b_length:
             b_demand = c_demand
             b_length = c_length
             b_nodes[:] = c_nodes[:]
             b_arcs[:] = c_arcs[:]
-    
+
         connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
         for arc in connected_arcs:
             if arc['enabled'] == 0 and arc['i'] != prev_arc:
 
-                goto = 'ne' if arc['ns'] == index else 'ns'  # make sure we look at the other end of the arc
+                # make sure we look at the other end of the arc
+                goto = 'ne' if arc['ns'] == index else 'ns'
                 network, nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
                     network, nodes, arc[goto], arc['i'], b_demand, b_length, b_nodes, b_arcs, c_demand, c_length, c_nodes, c_arcs)
-                
+
     return network, nodes, b_demand, b_length, b_nodes, b_arcs

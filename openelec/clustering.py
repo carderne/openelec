@@ -1,5 +1,5 @@
-# clustering.py
 #!python3
+# clustering.py
 
 """
 clusters module for openelec
@@ -25,11 +25,12 @@ from rasterio.features import shapes, rasterize
 from rasterstats import zonal_stats
 
 
-def prepare_clusters(country, ghs_in, gdp_in, travel_in, ntl_in, aoi_in, grid_in, clusters_out):
+def prepare_clusters(country, ghs_in, gdp_in, travel_in, ntl_in,
+                     aoi_in, grid_in, clusters_out):
     """
     Run all.
     """
-   
+
     Path(clusters_out).parents[0].mkdir(parents=True, exist_ok=True)
 
     print(f'\n\n--- {country} ---\n\n')
@@ -39,52 +40,62 @@ def prepare_clusters(country, ghs_in, gdp_in, travel_in, ntl_in, aoi_in, grid_in
     clipped, affine, crs = clip_raster(raster=ghs_in, boundary=boundary)
     print('\n -- Shape:', clipped[0].shape)
     print('-- Affine:\n', affine)
-    
+
     print('\t\t\tDone\nCreating clusters...', end='', flush=True)
     clusters = create_clusters(raster=clipped, affine=affine, crs=crs)
-    
+
     print('\t\tDone\nFiltering and merging...', end='', flush=True)
     clusters = filter_merge_clusters(clusters=clusters, buffer_amount=200)
-    
+
     print('\tDone\nGetting population...', end='', flush=True)
     # Number of people per cluster
-    clusters = add_raster_layer(clusters=clusters, raster=ghs_in, operation='sum', col_name='pop')
+    clusters = add_raster_layer(clusters=clusters, raster=ghs_in,
+                                operation='sum', col_name='pop')
     clusters = fix_column(clusters, 'pop', minimum=0)
-    
+
     print('\tDone\nGetting NTL...', end='', flush=True)
     # Value from -0.1ish to about 30? We cut off negative values to minimum 0
-    clusters = add_raster_layer(clusters=clusters, raster=ntl_in, operation='max', col_name='ntl', crs={'init': 'epsg:4326'})
+    clusters = add_raster_layer(clusters=clusters, raster=ntl_in,
+                                operation='max', col_name='ntl',
+                                crs={'init': 'epsg:4326'})
     clusters = fix_column(clusters, 'ntl', minimum=0)
-    
+
     print('\tDone\nGetting travel...', end='', flush=True)
-    # Travel time to cities, divide by 60m to get hours and replace nan with median
-    clusters = add_raster_layer(clusters=clusters, raster=travel_in, operation='median', col_name='travel')
+    # Travel time to cities, divide by 60m to get hours
+    # and replace nan with median
+    clusters = add_raster_layer(clusters=clusters, raster=travel_in,
+                                operation='median', col_name='travel')
     clusters = fix_column(clusters, 'travel', factor=1/60, no_value='median')
-    
+
     print('\tDone\nGetting GDP...', end='', flush=True)
     # Get GDP in USD/capita for each cluster (input is kUSD per cell)
-    clusters = add_raster_layer(clusters=clusters, raster=gdp_in, operation='sum', col_name='gdp')
-    clusters = fix_column(clusters, 'gdp', factor=1000, maximum='largest', no_value='median', per_capita=True)
-    
+    clusters = add_raster_layer(clusters=clusters, raster=gdp_in,
+                                operation='sum', col_name='gdp')
+    clusters = fix_column(clusters, 'gdp', factor=1000, maximum='largest',
+                          no_value='median', per_capita=True)
+
     print('\t\tDone\nGetting grid dists...', end='', flush=True)
     # Get grid distance in km
     grid = gpd.read_file(grid_in)
     grid = grid[grid.geometry.intersects(boundary.geometry.unary_union)]
-    clusters = add_vector_layer(clusters=clusters, vector=grid, operation='distance', col_name='grid',
-                                                shape=clipped[0].shape, affine=affine, raster_crs=crs)
+    clusters = add_vector_layer(clusters=clusters, vector=grid,
+                                operation='distance', col_name='grid',
+                                shape=clipped[0].shape, affine=affine,
+                                raster_crs=crs)
     clusters = fix_column(clusters, 'grid', factor=1/1000)
-    
+
     print('\t\tDone\nSimplifying geometry...', end='', flush=True)
-    clusters.geometry = clusters.simplify(tolerance=0.001, preserve_topology=False)
-    
+    clusters.geometry = clusters.simplify(tolerance=0.001,
+                                          preserve_topology=False)
+
     print(f'\t\tDone\nSaving to {str(clusters_out)}...', end='', flush=True)
     clusters['fid'] = clusters.index
     clusters = clusters.dropna(axis=0, subset=['geometry'])
     save_clusters(clusters=clusters, out_path=clusters_out)
-    
+
     print('\t\tDone')
     print(f'\nDone {country}')
-    
+
     return clusters
 
 
@@ -123,7 +134,7 @@ def clip_raster(raster, boundary, boundary_layer=None):
         raster = rasterio.open(raster)
 
     crs = raster.crs
-    
+
     if isinstance(boundary, Path):
         boundary = str(boundary)
     if isinstance(boundary, str):
@@ -132,7 +143,7 @@ def clip_raster(raster, boundary, boundary_layer=None):
         else:
             driver = None  # default to shapefile
             boundary_layer = ''  # because shapefiles have no layers
-    
+
         boundary = gpd.read_file(boundary, layer=boundary_layer, driver=driver)
 
     boundary = boundary.to_crs(crs=raster.crs)
@@ -169,7 +180,7 @@ def create_clusters(raster, affine, crs):
 
     raster = raster.astype(np.float32)
 
-    geoms = list(({'properties': {'raster_val': v}, 'geometry': s} 
+    geoms = list(({'properties': {'raster_val': v}, 'geometry': s}
                   for i, (s, v)
                   in enumerate(shapes(raster, mask=None, transform=affine))))
 
@@ -179,9 +190,13 @@ def create_clusters(raster, affine, crs):
     return clusters
 
 
-def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, buffer_amount=150):
+def filter_merge_clusters(clusters,
+                          max_block_size_multi=5,
+                          min_block_pop=50,
+                          buffer_amount=150):
     """
-    The vectors created by create_clusters() are a single square for each raster pixel.
+    The vectors created by create_clusters() are a single square for
+    each raster pixel.
     This function does the follows:
     - Remove overly large clusters, caused by defects in the input raster.
     - Remove clusters with population below a certain threshold.
@@ -191,12 +206,12 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     ----------
     clusters: geopandas.GeoDataFrame
         The unprocessed clusters created by create_clusters()
-    max_block_size_multi: int, optional
-        Remove clusters that are more than this many times average size. Default 5.
-    min_block_pop: int, optional
-        Remove clusters with below this population. Default 50.
-    buffer_amount: int, optional
-        Distance in metres by which to buffer the clusters before merging. Default 150.
+    max_block_size_multi: int, optional (default 5.)
+        Remove clusters that are more than this many times average size.
+    min_block_pop: int, optional (default 50.)
+        Remove clusters with below this population.
+    buffer_amount: int, optional (default 150.)
+        Distance in metres by which to buffer the clusters before merging.
 
     Returns
     -------
@@ -214,12 +229,14 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     # buffer outwards so that nearby blocks will overlap
     clusters['geometry'] = clusters.geometry.buffer(buffer_amount)
 
-    # and dissolve the thousands of blocks into a single layer (with no attributes!)
+    # and dissolve the thousands of blocks into a single layer
+    # (with no attributes!)
     clusters['same'] = 1
     clusters = clusters.dissolve(by='same')
 
-    # To get our attributes back, we convert the dissolves polygon into singleparts
-    # This means each contiguous bubble becomes its own polygon and can store its own attributes
+    # To get attributes back, we convert the dissolves polygon into singleparts
+    # This means each contiguous bubble becomes its own polygon
+    # and can store its own attributes
     clusters = clusters.explode()
     clusters = clusters.reset_index()
 
@@ -228,16 +245,18 @@ def filter_merge_clusters(clusters, max_block_size_multi=5, min_block_pop=50, bu
     # clusters = gpd.GeoDataFrame(clusters)
     # clusters.crs = crs
 
-    clusters = clusters.drop(columns=['same', 'level_1', 'raster_val'])  # raster_val is no longer meaningful
-    
+    # raster_val is no longer meaningful
+    clusters = clusters.drop(columns=['same', 'level_1', 'raster_val'])
+
     # And then add the polygon's area back to its attributes
     clusters["area"] = clusters['geometry'].area
-    clusters = clusters.to_crs(epsg = 4326)
+    clusters = clusters.to_crs(epsg=4326)
 
     return clusters
 
 
-def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=None):
+def add_raster_layer(clusters, raster, operation, col_name,
+                     affine=None, crs=None):
     """
     The filter_merge_clusters() process loses the underlying raster values.
     So we need to use rasterstats.zonal_stats() to get it back.
@@ -247,7 +266,7 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
     clusters: geopandas.GeoDataFrame
         The processed clusters.
     raster: str, pathlib.Path or numpy.ndarray
-        Either a path to the raster, or an already imported numpy.ndarray with the data.
+        Either a path to the raster, or numpy.ndarray with the data.
     operation: str
         The operation to perform when extracting the raster data.
         Either 'sum', 'max', or 'mean'
@@ -283,7 +302,8 @@ def add_raster_layer(clusters, raster, operation, col_name, affine=None, crs=Non
         raise NotImplementedError('Only implemented for path input.')
 
 
-def add_vector_layer(clusters, vector, operation, col_name, shape, affine, raster_crs):
+def add_vector_layer(clusters, vector, operation, col_name,
+                     shape, affine, raster_crs):
     """
     Use a vector containing grid infrastructure to determine
     each cluster's distance from the grid.
@@ -322,54 +342,85 @@ def add_vector_layer(clusters, vector, operation, col_name, shape, affine, raste
         vector = vector.loc[vector['geometry'].length > 0]
 
         grid_raster = rasterize(vector.geometry, out_shape=shape, fill=1,
-                                default_value=0, all_touched=True, transform=affine)
+                                default_value=0, all_touched=True,
+                                transform=affine)
         dist_raster = ndimage.distance_transform_edt(grid_raster) * affine[0]
 
-        dists = zonal_stats(vectors=clusters, raster=dist_raster, affine=affine, stats='min', nodata=1e9)
+        dists = zonal_stats(vectors=clusters, raster=dist_raster,
+                            affine=affine, stats='min', nodata=1e9)
         clusters[col_name] = [x['min'] for x in dists]
 
         return clusters.to_crs(epsg=4326)
 
     else:
-        raise NotImplementedError('Currently only "distance" is supported as an argument for operations.')
+        raise NotImplementedError('Currently only "distance" is supported.')
 
 
-def fix_column(clusters, col_name, factor=1, minimum=0, maximum=None, no_value=None, per_capita=False):
+def fix_column(clusters, col_name,
+               factor=1,
+               minimum=0,
+               maximum=None,
+               no_value=None,
+               per_capita=False):
     """
+    A number of operations to apply to a columns values to get desired output.
 
+    Parameters
+    ----------
+    clusters : GeoDataFrame
+        The clusters object.
+    col_name : str
+        The column to apply the operation to.
+    factor : float, optional (default 1.)
+        Factor by which to multiply the column vales.
+    minimum : float, optional (default 0.)
+        Apply a minimum threshold to the values.
+    maximum : str, optional
+        Currently only supported for 'largest'.
+        Limits the values to double the value of the cluster with the highest
+        population.
+    no_value : str, optional
+        Currently only supported for 'median'.
+        Replaces NaN instances with the median value.
+    per_capita : boolean, optional (default False.)
+        Divide values by cluster population.
+
+    Returns
+    -------
+    clusters : GeoDataFrame
+        The 'fixed' clusters.
     """
 
     # multiply the column by a fixed factor
-    if factor != None and factor != 1:
+    if factor is not None and factor != 1:
         clusters[col_name] = clusters[col_name] * factor
 
     # remove negative values
-    if minimum != None:
+    if minimum is not None:
         clusters.loc[clusters[col_name] < minimum, col_name] = minimum
 
     if per_capita:
         clusters[col_name] = clusters[col_name] / clusters['pop']
 
     # apply a cutoff maximum value
-    if maximum != None:
+    if maximum is not None:
         if maximum == 'largest':
             limit = 2 * float(clusters.loc[clusters['pop'] == clusters['pop'].max(), col_name].tolist()[0])
             clusters.loc[clusters[col_name] > limit, col_name] = limit
-        
+
         else:
-            raise NotImplementedError('maximum only implemented for "largest".')
+            raise NotImplementedError('maximum only implemented for largest.')
 
     # replace nan values
-    if no_value != None:
+    if no_value is not None:
         if no_value == 'median':
             replace = {col_name: clusters[col_name].median()}
             clusters = clusters.fillna(value=replace)
 
         else:
-            raise NotImplementedError('no_value only implemented for "median".')
+            raise NotImplementedError('no_value only implemented for median.')
 
     return clusters
-
 
 
 def save_clusters(clusters, out_path):
@@ -386,7 +437,7 @@ def save_clusters(clusters, out_path):
     if '.gpkg' in out_path:
         driver = 'GPKG'
     elif '.geojson' in out_path or '.json' in out_path:
-        driver='GeoJSON'
+        driver = 'GeoJSON'
     else:
         driver = None
 

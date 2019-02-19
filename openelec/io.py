@@ -1,5 +1,5 @@
-# io.py
 #!python3
+# io.py
 
 """
 Module for loading and saving.
@@ -14,11 +14,9 @@ import requests
 import pandas as pd
 import geopandas as gpd
 import fiona
-from shapely.geometry import Point, LineString, Polygon, MultiPolygon
+from shapely.geometry import LineString, Polygon, MultiPolygon
 
-EPSG4326 = {'init': 'epsg:4326'}
-# This is the Africa Albers Equal Area Conic EPSG: 102022
-EPSG102022 = '+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 +lon_0=25 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
+from openelec import EPSG4326, EPSG102022
 
 
 def read_data(data):
@@ -53,7 +51,7 @@ def read_data(data):
     # project to equal-area before calculating area
     targets = targets.to_crs(EPSG102022)
 
-    if not 'area' in targets.columns:
+    if 'area' not in targets.columns:
         targets['area'] = targets['geometry'].area
 
     # project back to WGS84
@@ -98,7 +96,8 @@ def merge_geometry(results, geometry, columns=None):
     if len(results_df) > len(geometry):
         results_df.index = results_df.index - 1  # to get rid of pv point
 
-    spatial = geometry.merge(results_df, how='left', left_index=True, right_index=True)
+    spatial = geometry.merge(results_df, how='left',
+                             left_index=True, right_index=True)
     spatial = spatial.to_crs(EPSG4326)
 
     return spatial
@@ -106,7 +105,7 @@ def merge_geometry(results, geometry, columns=None):
 
 def spatialise(results, type='line'):
     """
-    Convert results to a GeoDataFrame using values to 
+    Convert results to a GeoDataFrame using values to
     create a geometry.
 
     Parameters
@@ -124,9 +123,10 @@ def spatialise(results, type='line'):
     """
 
     results_df = pd.DataFrame(results)
-    
+
     if type == 'line':
-        geometry = [LineString([(arc['xs'], arc['ys']), (arc['xe'], arc['ye'])]) for arc in results]
+        geometry = [LineString([(arc['xs'], arc['ys']),
+                                (arc['xe'], arc['ye'])]) for arc in results]
     else:
         raise NotImplementedError('Only implemented for type==line.')
 
@@ -145,13 +145,15 @@ def geojsonify(gdf, property_cols=[]):
     gdf: geopandas.GeoDataFrame
         GeoDataFrame to be converted.
     property_cols: list, optional
-        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
+        List of column names from gdf to be included in 'properties'
+        of each GeoJSON feature.
 
     Returns
     -------
     geoJson: dict
         A GeoJSON representatial
-        List of column names from gdf to be included in 'properties' of each GeoJSON feature.
+        List of column names from gdf to be included in 'properties'
+        of each GeoJSON feature.
 
     Returns
     -------
@@ -160,7 +162,7 @@ def geojsonify(gdf, property_cols=[]):
     """
 
     geojson = {'type': 'FeatureCollection',
-           'features': []}
+               'features': []}
 
     for _, row in gdf.iterrows():
         geojson['features'].append({
@@ -174,7 +176,7 @@ def geojsonify(gdf, property_cols=[]):
 
 def geometry(coordinates):
     """
-    Convert a GeoDataFrame geometry value into a GeoJSON-friendly representation.
+    Convert a GeoDataFrame geometry value into a GeoJSON-friendly form..
 
     Parameters
     ----------
@@ -188,11 +190,11 @@ def geometry(coordinates):
         'geometry': {
             'type': type,
             'coordinates': coords
-        } 
+        }
     """
 
     geom_dict = {}
-    
+
     if isinstance(coordinates, LineString):
         geom_dict['type'] = 'LineString'
         geom_dict['coordinates'] = list(coordinates.coords)
@@ -200,15 +202,15 @@ def geometry(coordinates):
     elif isinstance(coordinates, Polygon):
         geom_dict['type'] = 'Polygon'
         geom_dict['coordinates'] = [list(coordinates.exterior.coords)]
-    
+
     elif isinstance(coordinates, MultiPolygon):
         if len(coordinates.geoms) > 1:
             # TODO should handle true multipolygons somehow
             pass
-        
+
         geom_dict['type'] = 'Polygon'
         geom_dict['coordinates'] = [list(coordinates.geoms[0].exterior.coords)]
-        
+
     return geom_dict
 
 
@@ -234,13 +236,13 @@ def properties(row, property_cols):
         }
     """
     prop_dict = {}
-    
+
     for col in property_cols:
         if pd.notna(row[col]):
             prop_dict[col] = row[col]
         else:
             prop_dict[col] = 0
-        
+
     return prop_dict
 
 
@@ -259,7 +261,7 @@ def overpass(bounds):
     geojson : dict
         GeoJSON results.
     """
-    
+
     overpassQuery = 'building'
     nodeQuery = 'node[' + overpassQuery + '](' + bounds + ');'
     wayQuery = 'way[' + overpassQuery + '](' + bounds + ');'
@@ -291,14 +293,14 @@ def json2geojson(items):
     """
 
     geojson = {
-        "type": "FeatureCollection",
-        "features": [
+        'type': 'FeatureCollection',
+        'features': [
             {
-                "type": "Feature",
-                 "properties": {},
-                 "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [[
                         [
                             point['lon'],
                             point['lat']
@@ -308,7 +310,7 @@ def json2geojson(items):
             } for feature in items
         ]
     }
-    
+
     return geojson
 
 

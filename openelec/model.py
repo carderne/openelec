@@ -1,5 +1,5 @@
-# model.py
 #!python3
+# model.py
 
 """
 model module for openelec.
@@ -13,7 +13,6 @@ class Model:
     """
     Base class for NationalModel and LocalModel.
     """
-        
 
     def __init__(self, data):
         """
@@ -38,7 +37,6 @@ class Model:
         self.nodes = None
         self.targets_out = None
 
-
     def setup(self, sort_by=None, **kwargs):
         """
         Basic set up on target features.
@@ -61,10 +59,8 @@ class Model:
 
         self.targets = self.targets.reset_index().drop(columns=['index'])
 
-
     def baseline(self):
         raise NotImplementedError('This method should always be over-ridden.')
-
 
     def save_to_path(self, path):
         """
@@ -78,14 +74,17 @@ class Model:
             Will be created if needed, will not prompt on overwrite.
         """
 
-        io.save_to_path(path, network_out=self.network_out, targets_out=self.targets_out)
+        io.save_to_path(path, network_out=self.network_out,
+                        targets_out=self.targets_out)
 
     def results_as_geojson(self, network_columns=None, targets_columns=None):
         """
         Convert all model output to GeoJSON.
         """
 
-        network_geojson = io.geojsonify(self.network_out, property_cols=network_columns)
-        targets_geojson = io.geojsonify(self.targets_out, property_cols=targets_columns)
+        network_geojson = io.geojsonify(self.network_out,
+                                        property_cols=network_columns)
+        targets_geojson = io.geojsonify(self.targets_out,
+                                        property_cols=targets_columns)
 
         return network_geojson, targets_geojson

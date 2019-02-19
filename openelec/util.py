@@ -1,5 +1,5 @@
-# util.py
 #!python3
+# util.py
 
 """
 Helper functions for models.
@@ -14,24 +14,25 @@ def connect_houses(network, nodes, index):
     """
     Then we disconnect all the houses that are no longer served by active arcs,
     and prune any stranded arcs that remained on un-connected paths.
-    now we need to tell the houses that aren't connected, that they aren't connected (or vice-versa)
-    recurse from the starting point and ID connected houses as connected?
+    now we need to tell the houses that aren't connected, that they aren't
+    connected (or vice-versa)
 
-    Start from base, follow connection (similar to calculate_profit) and swith node[6] to 1 wherever connected
-    and only follow the paths of connected houses
+    Start from base, follow connection (similar to calculate_profit)
+    and swith node[6] to 1 wherever connected and only follow the paths
+    of connected houses.
     """
-    
+
     # this node is connected
     nodes[index]['conn'] = 1
-    
+
     connected_arcs = [network[arc_index] for arc_index in nodes[index]['arcs']]
     for arc in connected_arcs:
         if arc['enabled'] == 1 and arc['ns'] == index:
             connect_houses(network, nodes, arc['ne'])
 
     return network, nodes
-            
-    
+
+
 def stranded_arcs(network, nodes):
     """
     And do the same for the stranded arcs
@@ -46,7 +47,8 @@ def stranded_arcs(network, nodes):
     return network, nodes
 
 
-def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, increment=0.1, max_coverage=0.8):
+def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01,
+                  increment=0.1, max_coverage=0.8):
     """
     Estimate coverage levels for the given parameters.
 
@@ -70,7 +72,7 @@ def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, incr
     coverage : numpy array
         Array of coverage levels of same shape as weight.
     """
-    
+
     coverage = np.zeros_like(weight)
     error = 1
     add = 0.0
@@ -93,8 +95,8 @@ def calc_coverage(weight, pop, conn, pop_tot, target_access, accuracy=0.01, incr
                 error = abs(access - target_access)
                 if error <= accuracy:
                     break
-        
-        loop += 1        
+
+        loop += 1
         add += increment
 
         if loop > max_loops:
@@ -107,7 +109,7 @@ def assign_coverage(targets, access_rate):
     """
     Estimate level of electricity access for each target.
     """
-    
+
     targets = targets.copy()
     # total population for calculating access target
     pop_tot = targets['pop'].sum()
@@ -123,8 +125,9 @@ def assign_coverage(targets, access_rate):
     weight = by_weight['weight'].to_numpy(copy=True)
     pop = by_weight['pop'].to_numpy(copy=True)
     conn = by_weight['conn_start'].to_numpy(copy=True)
-    
-    coverage = calc_coverage(weight, pop, conn, pop_tot=pop_tot, target_access=access_rate)
+
+    coverage = calc_coverage(weight, pop, conn, pop_tot=pop_tot,
+                             target_access=access_rate)
     by_weight['coverage'] = coverage
     targets = by_weight.sort_values(by='pop', ascending=False)
 
@@ -144,20 +147,20 @@ def calc_lv(people, demand, people_per_hh, area):
     max_transformer_kVA = 50
     base_to_peak = 0.85                # for the sizing of needed capacity
     power_factor = 0.9                 # From (1)
-    
+
     nodes = people / people_per_hh
-    
+
     average_load = people * demand * 12 / hours_per_year
     peak_kVA = average_load / base_to_peak / power_factor
-    
+
     transformers = ceil(peak_kVA/max_transformer_kVA)
     if transformers <= 0:
         transformers = 1
 
     transformer_radius = sqrt((area / transformers) / pi)
     cluster_radius = sqrt(area / pi)
-    
-    mv_len = 2/3 * cluster_radius *  transformers
+
+    mv_len = 2/3 * cluster_radius * transformers
     lv_len = 2/3 * transformer_radius * nodes
-    
+
     return mv_len, lv_len, transformers
