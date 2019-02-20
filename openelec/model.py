@@ -57,10 +57,10 @@ class Model:
         self.x_mean = self.targets.geometry.centroid.x.mean()
         self.y_mean = self.targets.geometry.centroid.y.mean()
 
-        self.targets = self.targets.reset_index().drop(columns=['index'])
+        self.targets = self.targets.reset_index().drop(columns=["index"])
 
     def baseline(self):
-        raise NotImplementedError('This method should always be over-ridden.')
+        raise NotImplementedError("This method should always be over-ridden.")
 
     def save_to_path(self, path):
         """
@@ -74,17 +74,16 @@ class Model:
             Will be created if needed, will not prompt on overwrite.
         """
 
-        io.save_to_path(path, network_out=self.network_out,
-                        targets_out=self.targets_out)
+        io.save_to_path(
+            path, network_out=self.network_out, targets_out=self.targets_out
+        )
 
     def results_as_geojson(self, network_columns=None, targets_columns=None):
         """
         Convert all model output to GeoJSON.
         """
 
-        network_geojson = io.geojsonify(self.network_out,
-                                        property_cols=network_columns)
-        targets_geojson = io.geojsonify(self.targets_out,
-                                        property_cols=targets_columns)
+        network_geojson = io.geojsonify(self.network_out, property_cols=network_columns)
+        targets_geojson = io.geojsonify(self.targets_out, property_cols=targets_columns)
 
         return network_geojson, targets_geojson

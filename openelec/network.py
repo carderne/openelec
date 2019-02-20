@@ -19,8 +19,9 @@ from shapely.geometry import Point
 from openelec import EPSG4326, EPSG102022
 
 
-def create_network(targets, columns, existing_network=False,
-                   directed=False, origin=None):
+def create_network(
+    targets, columns, existing_network=False, directed=False, origin=None
+):
     """
     We then take all the clusters and calculate the optimum network that
     connects them all together. We use this to create a graph network of and
@@ -51,9 +52,9 @@ def create_network(targets, columns, existing_network=False,
     """
 
     points = targets.to_crs(EPSG102022)
-    points.geometry = points['geometry'].centroid
-    points['x'] = points.geometry.x
-    points['y'] = points.geometry.y
+    points.geometry = points["geometry"].centroid
+    points["x"] = points.geometry.x
+    points["y"] = points.geometry.y
     points = points[columns]
 
     if origin:
@@ -66,13 +67,12 @@ def create_network(targets, columns, existing_network=False,
     nodes = []
     for index, row in points.iterrows():
         row_dict = row.to_dict()
-        row_dict['i'] = index
-        row_dict['arcs'] = []
+        row_dict["i"] = index
+        row_dict["arcs"] = []
         nodes.append(row_dict)
 
-    mst_points = points[['x', 'y']].values
-    start_points, end_points, nodes_conn = spanning_tree(mst_points,
-                                                         approximate=True)
+    mst_points = points[["x", "y"]].values
+    start_points, end_points, nodes_conn = spanning_tree(mst_points, approximate=True)
 
     network = []
     for i, (s, e, n) in enumerate(zip(start_points, end_points, nodes_conn)):
@@ -80,18 +80,28 @@ def create_network(targets, columns, existing_network=False,
         ys = int(s[1])
         xe = int(e[0])
         ye = int(e[1])
-        length = int(sqrt((xe - xs)**2 + (ye - ys)**2))
+        length = int(sqrt((xe - xs) ** 2 + (ye - ys) ** 2))
 
         ns = n[0]
         ne = n[1]
 
-        nodes[ns]['arcs'].append(i)
-        nodes[ne]['arcs'].append(i)
+        nodes[ns]["arcs"].append(i)
+        nodes[ne]["arcs"].append(i)
 
-        network.append({'i': i,
-                        'xs': xs, 'ys': ys, 'xe': xe, 'ye': ye,
-                        'ns': ns, 'ne': ne,
-                        'len': length, 'enabled': 1, 'existing': 1})
+        network.append(
+            {
+                "i": i,
+                "xs": xs,
+                "ys": ys,
+                "xe": xe,
+                "ye": ye,
+                "ns": ns,
+                "ne": ne,
+                "len": length,
+                "enabled": 1,
+                "existing": 1,
+            }
+        )
 
     if existing_network:
         network = remove_existing(network, nodes)
@@ -130,14 +140,14 @@ def spanning_tree(X, approximate=False):
 
     n_neighbors = min(n_neighbors, len(X) - 1)
     if n_neighbors < 2:
-        raise ValueError('Need at least three sample points')
+        raise ValueError("Need at least three sample points")
 
-    G = kneighbors_graph(X, n_neighbors=n_neighbors, mode='distance')
+    G = kneighbors_graph(X, n_neighbors=n_neighbors, mode="distance")
     full_tree = minimum_spanning_tree(G, overwrite=True)
 
     X = np.asarray(X)
     if X.ndim != 2 or X.shape[1] != 2:
-        raise ValueError('shape of X should be (n_samples, 2)')
+        raise ValueError("shape of X should be (n_samples, 2)")
 
     coo = sparse.coo_matrix(full_tree)
     A = X[coo.row].T
@@ -159,14 +169,18 @@ def add_origin(points, origin):
 
     gen_lat = float(origin[0])
     gen_lng = float(origin[1])
-    pv_point = gpd.GeoDataFrame(crs=EPSG4326,
-                                geometry=[Point([gen_lng, gen_lat])])
+    pv_point = gpd.GeoDataFrame(crs=EPSG4326, geometry=[Point([gen_lng, gen_lat])])
     pv_point_projected = pv_point.to_crs(EPSG102022)
-    pv_point_df = [{'x': float(pv_point_projected.geometry.x),
-                    'y': float(pv_point_projected.geometry.y),
-                    'area': 0}]
-    points = pd.concat([pd.DataFrame(pv_point_df), points],
-                       ignore_index=True, sort=False)
+    pv_point_df = [
+        {
+            "x": float(pv_point_projected.geometry.x),
+            "y": float(pv_point_projected.geometry.y),
+            "area": 0,
+        }
+    ]
+    points = pd.concat(
+        [pd.DataFrame(pv_point_df), points], ignore_index=True, sort=False
+    )
     points = points.fillna(value=0)
 
     return points
@@ -178,11 +192,11 @@ def remove_existing(network, nodes):
     """
 
     for node in nodes:
-        if node['conn_start'] == 0:
-            connected_arcs = [network[arc_index] for arc_index in node['arcs']]
+        if node["conn_start"] == 0:
+            connected_arcs = [network[arc_index] for arc_index in node["arcs"]]
             for arc in connected_arcs:
-                network[arc['i']]['existing'] = 0
-                network[arc['i']]['enabled'] = 0
+                network[arc["i"]]["existing"] = 0
+                network[arc["i"]]["enabled"] = 0
 
     return network
 
@@ -215,27 +229,27 @@ def direct_network(network, nodes, index, prev):
         The nodes object.
     """
 
-    connected_arcs = nodes[index]['arcs']
+    connected_arcs = nodes[index]["arcs"]
     for arc_index in connected_arcs:
         if arc_index == prev:
             continue
 
         arc = network[arc_index]
-        if not arc['ns'] == index:
-            arc['ne'] = arc['ns']
-            arc['ns'] = index
+        if not arc["ns"] == index:
+            arc["ne"] = arc["ns"]
+            arc["ns"] = index
 
-            xs_new = arc['xe']
-            ys_new = arc['ye']
-            arc['xe'] = arc['xs']
-            arc['ye'] = arc['ys']
-            arc['xs'] = xs_new
-            arc['ys'] = ys_new
+            xs_new = arc["xe"]
+            ys_new = arc["ye"]
+            arc["xe"] = arc["xs"]
+            arc["ye"] = arc["ys"]
+            arc["xs"] = xs_new
+            arc["ys"] = ys_new
 
         # and investigate downstream from this node
-        network = direct_network(network, nodes, arc['ne'], arc_index)
+        network = direct_network(network, nodes, arc["ne"], arc_index)
 
     for arc in network:
-        nodes[arc['ne']]['marg_dist'] = arc['len']
+        nodes[arc["ne"]]["marg_dist"] = arc["len"]
 
     return network

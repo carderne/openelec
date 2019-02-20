@@ -46,13 +46,13 @@ def read_data(data):
     if isinstance(data, Path):
         targets = gpd.read_file(data)
 
-    targets = targets.dropna(subset=['geometry'])
+    targets = targets.dropna(subset=["geometry"])
 
     # project to equal-area before calculating area
     targets = targets.to_crs(EPSG102022)
 
-    if 'area' not in targets.columns:
-        targets['area'] = targets['geometry'].area
+    if "area" not in targets.columns:
+        targets["area"] = targets["geometry"].area
 
     # project back to WGS84
     targets = targets.to_crs(EPSG4326)
@@ -96,14 +96,13 @@ def merge_geometry(results, geometry, columns=None):
     if len(results_df) > len(geometry):
         results_df.index = results_df.index - 1  # to get rid of pv point
 
-    spatial = geometry.merge(results_df, how='left',
-                             left_index=True, right_index=True)
+    spatial = geometry.merge(results_df, how="left", left_index=True, right_index=True)
     spatial = spatial.to_crs(EPSG4326)
 
     return spatial
 
 
-def spatialise(results, type='line'):
+def spatialise(results, type="line"):
     """
     Convert results to a GeoDataFrame using values to
     create a geometry.
@@ -124,11 +123,13 @@ def spatialise(results, type='line'):
 
     results_df = pd.DataFrame(results)
 
-    if type == 'line':
-        geometry = [LineString([(arc['xs'], arc['ys']),
-                                (arc['xe'], arc['ye'])]) for arc in results]
+    if type == "line":
+        geometry = [
+            LineString([(arc["xs"], arc["ys"]), (arc["xe"], arc["ye"])])
+            for arc in results
+        ]
     else:
-        raise NotImplementedError('Only implemented for type==line.')
+        raise NotImplementedError("Only implemented for type==line.")
 
     spatial = gpd.GeoDataFrame(results_df, crs=EPSG102022, geometry=geometry)
     spatial = spatial.to_crs(EPSG4326)
@@ -161,15 +162,16 @@ def geojsonify(gdf, property_cols=[]):
         A GeoJSON representation that can be parsed by standard JSON readers.
     """
 
-    geojson = {'type': 'FeatureCollection',
-               'features': []}
+    geojson = {"type": "FeatureCollection", "features": []}
 
     for _, row in gdf.iterrows():
-        geojson['features'].append({
-            'type': 'Feature',
-            'geometry': geometry(row['geometry']),
-            'properties': properties(row, property_cols)
-        })
+        geojson["features"].append(
+            {
+                "type": "Feature",
+                "geometry": geometry(row["geometry"]),
+                "properties": properties(row, property_cols),
+            }
+        )
 
     return geojson
 
@@ -196,20 +198,20 @@ def geometry(coordinates):
     geom_dict = {}
 
     if isinstance(coordinates, LineString):
-        geom_dict['type'] = 'LineString'
-        geom_dict['coordinates'] = list(coordinates.coords)
+        geom_dict["type"] = "LineString"
+        geom_dict["coordinates"] = list(coordinates.coords)
 
     elif isinstance(coordinates, Polygon):
-        geom_dict['type'] = 'Polygon'
-        geom_dict['coordinates'] = [list(coordinates.exterior.coords)]
+        geom_dict["type"] = "Polygon"
+        geom_dict["coordinates"] = [list(coordinates.exterior.coords)]
 
     elif isinstance(coordinates, MultiPolygon):
         if len(coordinates.geoms) > 1:
             # TODO should handle true multipolygons somehow
             pass
 
-        geom_dict['type'] = 'Polygon'
-        geom_dict['coordinates'] = [list(coordinates.geoms[0].exterior.coords)]
+        geom_dict["type"] = "Polygon"
+        geom_dict["coordinates"] = [list(coordinates.geoms[0].exterior.coords)]
 
     return geom_dict
 
@@ -262,16 +264,22 @@ def overpass(bounds):
         GeoJSON results.
     """
 
-    overpassQuery = 'building'
-    nodeQuery = 'node[' + overpassQuery + '](' + bounds + ');'
-    wayQuery = 'way[' + overpassQuery + '](' + bounds + ');'
-    relationQuery = 'relation[' + overpassQuery + '](' + bounds + ');'
-    query = '?data=[out:json][timeout:15];(' + nodeQuery + wayQuery + relationQuery + ');out body geom;'
-    baseUrl = 'https://overpass-api.de/api/interpreter'
+    overpassQuery = "building"
+    nodeQuery = "node[" + overpassQuery + "](" + bounds + ");"
+    wayQuery = "way[" + overpassQuery + "](" + bounds + ");"
+    relationQuery = "relation[" + overpassQuery + "](" + bounds + ");"
+    query = (
+        "?data=[out:json][timeout:15];("
+        + nodeQuery
+        + wayQuery
+        + relationQuery
+        + ");out body geom;"
+    )
+    baseUrl = "https://overpass-api.de/api/interpreter"
     resultUrl = baseUrl + query
 
     response = requests.get(resultUrl)
-    items = response.json()['elements']
+    items = response.json()["elements"]
     geojson = json2geojson(items)
 
     return geojson
@@ -293,22 +301,23 @@ def json2geojson(items):
     """
 
     geojson = {
-        'type': 'FeatureCollection',
-        'features': [
+        "type": "FeatureCollection",
+        "features": [
             {
-                'type': 'Feature',
-                'properties': {},
-                'geometry': {
-                    'type': 'Polygon',
-                    'coordinates': [[
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
                         [
-                            point['lon'],
-                            point['lat']
-                        ] for point in reversed(feature['geometry'])
-                    ]]
-                }
-            } for feature in items
-        ]
+                            [point["lon"], point["lat"]]
+                            for point in reversed(feature["geometry"])
+                        ]
+                    ],
+                },
+            }
+            for feature in items
+        ],
     }
 
     return geojson
@@ -326,7 +335,7 @@ def save_to_path(path, **features):
     path.mkdir(parents=True, exist_ok=True)
 
     for name, feature in features.items():
-        name = name + '.geojson'
+        name = name + ".geojson"
         feature_path = path / name
         with fiona.Env():
-            feature.to_file(feature_path, driver='GeoJSON')
+            feature.to_file(feature_path, driver="GeoJSON")
