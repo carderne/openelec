@@ -1,5 +1,7 @@
 from distutils.core import setup
 
+import openelec
+
 long_description = """
 OpenElec is a prototype for a general purpose tool for creating
 optimised national electricity access pathways, and finding villages
@@ -9,7 +11,7 @@ national- and local-level analysis.
 
 setup(
     name='openelec',
-    version='0.0.4',
+    version=p[enelec.__version__],
     author='Chris Arderne',
     author_email='chris@rdrn.me',
     description='A tool for optimising electricity access pathways',
