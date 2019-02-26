@@ -442,18 +442,7 @@ class NationalModel(Model):
                             # function call a bit of a mess with all
                             # the c_ and b_ values
                             self.network, self.nodes, b_demand, b_length, b_nodes, b_arcs = find_best(
-                                self.network,
-                                self.nodes,
-                                arc[goto],
-                                arc["i"],
-                                0,
-                                1e-9,
-                                [],
-                                [],
-                                0,
-                                1e-9,
-                                [],
-                                [],
+                                self.network, self.nodes, arc[goto], arc["i"]
                             )
 
                             # calculate the mg and grid costs of the
@@ -588,14 +577,14 @@ def find_best(
     nodes,
     index,
     prev_arc,
-    b_demand,
-    b_length,
-    b_nodes,
-    b_arcs,
-    c_demand,
-    c_length,
-    c_nodes,
-    c_arcs,
+    b_demand=0,
+    b_length=1e-9,
+    b_nodes=[],
+    b_arcs=[],
+    c_demand=0,
+    c_length=1e-9,
+    c_nodes=[],
+    c_arcs=[],
 ):
     """
     This function recurses the network, bringing current c_ values with it.
@@ -603,6 +592,13 @@ def find_best(
     The b_ values are returned, and updated when a better configuration found.
     Thus these will remember the best solution including all side meanders.
     """
+
+    # TODO add defaults to parameters
+
+    # Because otherwise references to the same lists are carried around
+    # But I found any real cases where it makes a difference...
+    c_nodes = c_nodes.copy()
+    c_arcs = c_arcs.copy()
 
     # don't do anything with already connected nodes
     if nodes[index]["conn_end"] == 0:
