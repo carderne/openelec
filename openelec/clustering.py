@@ -56,6 +56,7 @@ def prepare_clusters(
 
     print("\tDone\nGetting NTL...", end="", flush=True)
     # Value from -0.1ish to about 30? We cut off negative values to minimum 0
+    # TODO Could instead do a count of lit to non-lit using gridfinder results?
     clusters = add_raster_layer(
         clusters=clusters,
         raster=ntl_in,
