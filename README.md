@@ -1,7 +1,7 @@
 # openelec
 [![Build Status](https://travis-ci.org/carderne/openelec.svg?branch=master)](https://travis-ci.org/carderne/openelec) [![PyPI version](https://badge.fury.io/py/openelec.svg)](https://badge.fury.io/py/openelec) [![Documentation Status](https://readthedocs.org/projects/openelec-docs/badge/?version=latest)](https://openelec-docs.readthedocs.io/en/latest/?badge=latest)
 
-Documentation: https://openelec-docs.readthedocs.io/en/latest/
+[Documentation](https://openelec-docs.readthedocs.io/en/latest/)
 
 openelec is a general tool for finding opportunities in electricity access. Able to create national-level plans for achieving universal electricity access, as well as optimise town/village-level mini-grid, densification and standalone systems. In addition, the tool provides functionality to find private-sector off-grid opportunities.
 
@@ -68,3 +68,15 @@ cd gridfinder
 pip install -r requirements.txt
 ```
 You can run ```./test.sh``` in the directory, which will do an entire run through using the test data and confirm whether everything is set up properly.
+
+Documentation
+-------------
+
+Built using sphinx. Available [here](https://openelec-docs.readthedocs.io/en/latest/). Build API reference with:
+
+```
+cd openelec/docscd
+sphinx-apidoc -o . ../openelec
+make html
+```
+

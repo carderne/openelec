@@ -51,6 +51,9 @@ def create_network(
         The network nodes.
     """
 
+    # TODO Use Djikstra with cost function to take into account roads, 
+    # mountains etc
+
     points = targets.to_crs(EPSG102022)
     points.geometry = points["geometry"].centroid
     points["x"] = points.geometry.x

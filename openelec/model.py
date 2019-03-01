@@ -6,7 +6,7 @@ model module for openelec.
 Provides common functionality for LocalModel and NationalModel.
 """
 
-from . import io
+from . import conv
 
 
 class Model:
@@ -25,7 +25,7 @@ class Model:
         """
 
         self.data = data
-        self.targets = io.read_data(data=self.data)
+        self.targets = conv.read_data(data=self.data)
 
         self.x_mean = None
         self.y_mean = None
@@ -74,7 +74,7 @@ class Model:
             Will be created if needed, will not prompt on overwrite.
         """
 
-        io.save_to_path(
+        conv.save_to_path(
             path, network_out=self.network_out, targets_out=self.targets_out
         )
 
@@ -83,7 +83,11 @@ class Model:
         Convert all model output to GeoJSON.
         """
 
-        network_geojson = io.geojsonify(self.network_out, property_cols=network_columns)
-        targets_geojson = io.geojsonify(self.targets_out, property_cols=targets_columns)
+        network_geojson = conv.geojsonify(
+            self.network_out, property_cols=network_columns
+        )
+        targets_geojson = conv.geojsonify(
+            self.targets_out, property_cols=targets_columns
+        )
 
         return network_geojson, targets_geojson

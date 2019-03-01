@@ -12,7 +12,7 @@ GPL-3.0 (c) Chris Arderne
 import numpy as np
 
 from .model import Model
-from . import io
+from . import conv
 from . import network
 from . import util
 
@@ -66,13 +66,13 @@ class LocalModel(Model):
         Convert all model output to GeoDataFrames.
         """
 
-        self.network_out = io.spatialise(self.network, type="line")
+        self.network_out = conv.spatialise(self.network, type="line")
 
         # TODO this should happen automatically somewhere else
         self.network_out = self.network_out.loc[self.network_out["enabled"] == 1]
         self.network_out = self.network_out.drop(labels="existing", axis="columns")
 
-        self.targets_out = io.merge_geometry(
+        self.targets_out = conv.merge_geometry(
             self.nodes, self.targets, columns=["conn", "marg_dist"]
         )
 

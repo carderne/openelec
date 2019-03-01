@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from .model import Model
-from . import io
+from . import conv
 from . import network
 from . import util
 
@@ -331,7 +331,7 @@ class NationalModel(Model):
             Output from model.
         """
 
-        self.network_out = io.spatialise(self.network, type="line")
+        self.network_out = conv.spatialise(self.network, type="line")
 
         # Only keep new network lines created by model
         # TODO this should happen automatically somewhere else
@@ -340,7 +340,7 @@ class NationalModel(Model):
                 self.network_out["existing"] == 0
             ].loc[self.network_out["enabled"] == 1]
 
-        self.targets_out = io.merge_geometry(
+        self.targets_out = conv.merge_geometry(
             self.nodes, self.targets, columns=["i", "conn_end", "og_cost", "grid_cost"]
         )
 

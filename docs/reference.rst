@@ -1,6 +1,9 @@
 API Reference
 ================
 
+Submodules
+----------
+
 openelec.clustering module
 --------------------------
 
@@ -9,10 +12,10 @@ openelec.clustering module
     :undoc-members:
     :show-inheritance:
 
-openelec.io module
-------------------
+openelec.conv module
+--------------------
 
-.. automodule:: openelec.io
+.. automodule:: openelec.conv
     :members:
     :undoc-members:
     :show-inheritance:
