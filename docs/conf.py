@@ -50,7 +50,8 @@ extensions = [
 
 autodoc_mock_imports = ["numpy", "pandas", "geopandas", "sklearn", "scikit-learn",
                         "scipy", "Shapely", "rasterio", "Fiona", "requests", "flask",
-                        "rasterstats", "jupyter", "matplotlib", "folium", "descartes"]
+                        "rasterstats", "jupyter", "matplotlib", "folium", "descartes",
+                        "fiona", "shapely"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
