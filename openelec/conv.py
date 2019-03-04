@@ -310,6 +310,8 @@ def json2geojson(items):
         As a GeoJSON.
     """
 
+
+
     geojson = {
         "type": "FeatureCollection",
         "features": [
@@ -326,7 +328,7 @@ def json2geojson(items):
                     ],
                 },
             }
-            for feature in items
+            for feature in items if "geometry" in feature
         ],
     }
 
