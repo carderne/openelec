@@ -3,6 +3,14 @@
 
 """
 Helper functions for models.
+
+Functions:
+
+- connect_houses
+- stranded_arcs
+- calc_coverage
+- assign_coverage
+- calc_lv
 """
 
 from math import pi, ceil, sqrt

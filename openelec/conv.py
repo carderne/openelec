@@ -4,7 +4,17 @@
 """
 Module for loading and saving.
 
-GPL-3.0 (c) Chris Arderne
+Functions:
+
+- read_data
+- merge_geometry
+- spatialise
+- geojsonify
+- geometry
+- properties
+- overpass
+- json2geojson
+-save_to_path
 """
 
 from pathlib import Path

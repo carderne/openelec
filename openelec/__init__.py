@@ -1,7 +1,5 @@
-#!python3
-# __init__.py
-
 """openelec package contains the following modules:
+
 - clustering
 - model
 - local

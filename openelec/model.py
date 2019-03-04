@@ -3,6 +3,7 @@
 
 """
 model module for openelec.
+
 Provides common functionality for LocalModel and NationalModel.
 """
 

@@ -1,12 +1,9 @@
-#!python3
-# local.py
-
 """
 local module for openelec
 Tool designed to take a small village and estimate the optimum connections,
 based on a PV installation location and economic data.
 
-GPL-3.0 (c) Chris Arderne
+Includes LocalModel class and calculate_profit function.
 """
 
 import numpy as np

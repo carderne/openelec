@@ -4,7 +4,9 @@
 """
 prioritising module for openelec
 
-GPL-3.0 (c) Chris Arderne
+Functions:
+
+- priority
 """
 
 

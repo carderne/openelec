@@ -4,6 +4,14 @@
 """
 network module of openelec.
 Provides functionality for creating MST and network from input points.
+
+Functions:
+
+- create_network
+- spanning_tree
+- add_origin
+- remove_existing
+- direct_network
 """
 
 from math import sqrt

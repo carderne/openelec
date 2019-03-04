@@ -1,6 +1,3 @@
-#!python3
-# clustering.py
-
 """
 clusters module for openelec
 
@@ -8,7 +5,16 @@ Provides functions to read in a raster population dataset and convert to discret
 vector polgons, each with a set population value. Additionally calculate each
 polygon's distance from a provided grid infrastructure vector.
 
-GPL-3.0 (c) Chris Arderne
+Functions:
+
+- prepare_clusters
+- clip_rasters
+- create_clusters
+- filter_merge_clusters
+- add_raster_layer
+- add_vector_layer
+- fix_column
+- save_clusters
 """
 
 import json

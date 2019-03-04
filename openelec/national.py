@@ -4,7 +4,7 @@
 """
 national module for openelec
 
-GPL-3.0 (c) Chris Arderne
+Includes NationalModel class and find_best function.
 """
 
 import numpy as np
