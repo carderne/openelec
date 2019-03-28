@@ -78,11 +78,6 @@ def priority(
     clusters.loc[clusters["consider"] == 1, "score"] = clusters.apply(get_score, axis=1)
     max_score = clusters["score"].max()
     clusters["score"] = clusters["score"] / max_score
-
-    clusters = clusters.to_crs(epsg=4326)
-
-    print(len(clusters.loc[clusters["consider"] == 1]))
-
     summary = {"num-clusters": len(clusters.loc[clusters["consider"] == 1])}
 
     return clusters, summary

@@ -58,14 +58,14 @@ def read_data(data):
 
     targets = targets.dropna(subset=["geometry"])
 
-    # project to equal-area before calculating area
-    targets = targets.to_crs(EPSG102022)
-
     if "area" not in targets.columns:
+        # project to equal-area before calculating area
+        targets = targets.to_crs(EPSG102022)
+
         targets["area"] = targets["geometry"].area
 
-    # project back to WGS84
-    targets = targets.to_crs(EPSG4326)
+        # project back to WGS84
+        targets = targets.to_crs(EPSG4326)
 
     return targets
 
@@ -173,6 +173,7 @@ def geojsonify(gdf, property_cols=[]):
     """
 
     geojson = {"type": "FeatureCollection", "features": []}
+    gdf.fillna(value=0)
 
     for _, row in gdf.iterrows():
         geojson["features"].append(
@@ -250,10 +251,7 @@ def properties(row, property_cols):
     prop_dict = {}
 
     for col in property_cols:
-        if pd.notna(row[col]):
-            prop_dict[col] = row[col]
-        else:
-            prop_dict[col] = 0
+        prop_dict[col] = row[col]
 
     return prop_dict
 
@@ -310,8 +308,6 @@ def json2geojson(items):
         As a GeoJSON.
     """
 
-
-
     geojson = {
         "type": "FeatureCollection",
         "features": [
@@ -328,7 +324,8 @@ def json2geojson(items):
                     ],
                 },
             }
-            for feature in items if "geometry" in feature
+            for feature in items
+            if "geometry" in feature
         ],
     }
 

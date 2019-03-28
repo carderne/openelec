@@ -554,19 +554,19 @@ class NationalModel(Model):
 
         # tags must match those in the config file
         self.results = {
-            "none": len(none),
-            "new-grid": len(grid),
-            "new-off-grid": len(off_grid),
-            "densify": len(densify),
-            "cost-grid": cost_grid,
-            "cost-off-grid": cost_off_grid,
-            "cost-densify": cost_densify,
-            "tot-cost": cost_tot,
-            "model-pop": model_pop,
-            "already-elec-pop": already_elec_pop,
-            "densify-pop": densify_pop,
-            "new-conn-pop": grid["pop"].sum(),
-            "new-og-pop": off_grid["pop"].sum(),
+            "none": int(len(none)),
+            "new-grid": int(len(grid)),
+            "new-off-grid": int(len(off_grid)),
+            "densify": int(len(densify)),
+            "cost-grid": int(cost_grid),
+            "cost-off-grid": int(cost_off_grid),
+            "cost-densify": int(cost_densify),
+            "tot-cost": int(cost_tot),
+            "model-pop": int(model_pop),
+            "already-elec-pop": int(already_elec_pop),
+            "densify-pop": int(densify_pop),
+            "new-conn-pop": int(grid["pop"].sum()),
+            "new-og-pop": int(off_grid["pop"].sum()),
         }
 
         return self.results

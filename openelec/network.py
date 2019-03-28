@@ -59,7 +59,7 @@ def create_network(
         The network nodes.
     """
 
-    # TODO Use Dijkstra with cost function to take into account roads, 
+    # TODO Use Dijkstra with cost function to take into account roads,
     # mountains etc
 
     points = targets.to_crs(EPSG102022)
