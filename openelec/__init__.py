@@ -1,6 +1,5 @@
 """openelec package contains the following modules:
 
-- clustering
 - model
 - local
 - national

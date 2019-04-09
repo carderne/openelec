@@ -8,6 +8,7 @@ openelec is a general tool for finding opportunities in electricity access. Able
 The library has a currently not very user-friendly Python API for scripting/notebook use.  
 There is also a [demonstration web interface running here](https://openelec.me/) (static front-end on AWS S3 with serverless backend on Lambda) and a [short blog post here](https://rdrn.me/electrification-model-openelec/).
 
+The clusters for modelling are created using the separate [clusterize](https://github.com/carderne/clusterize) tool.
 
 ### National-level
 
@@ -44,6 +45,7 @@ openelec requires Python >= 3.5 with the following packages installed:
 - ``shapely`` >= 1.6.4
 - ``scipy`` >= 1.0.0
 - ``scikit-learn`` >= 0.17.1
+- ``pyproj`` == 1.9.5.1
 
 Additionally these packages are needed for running the Jupyter notebook:
 
