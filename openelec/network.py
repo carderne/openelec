@@ -62,12 +62,7 @@ def create_network(
     # TODO Use Dijkstra with cost function to take into account roads,
     # mountains etc
 
-    points = targets.to_crs(EPSG102022)
-    points.geometry = points["geometry"].centroid
-    points["x"] = points.geometry.x
-    points["y"] = points.geometry.y
-    points = points[columns]
-
+    points = targets[columns]
     if origin:
         points = add_origin(points, origin)
 

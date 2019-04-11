@@ -59,13 +59,7 @@ def read_data(data):
     targets = targets.dropna(subset=["geometry"])
 
     if "area" not in targets.columns:
-        # project to equal-area before calculating area
-        targets = targets.to_crs(EPSG102022)
-
-        targets["area"] = targets["geometry"].area
-
-        # project back to WGS84
-        targets = targets.to_crs(EPSG4326)
+        raise ValueError("An 'area' column is requred")
 
     return targets
 
@@ -107,7 +101,6 @@ def merge_geometry(results, geometry, columns=None):
         results_df.index = results_df.index - 1  # to get rid of pv point
 
     spatial = geometry.merge(results_df, how="left", left_index=True, right_index=True)
-    spatial = spatial.to_crs(EPSG4326)
 
     return spatial
 
