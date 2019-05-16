@@ -59,7 +59,11 @@ def read_data(data):
     targets = targets.dropna(subset=["geometry"])
 
     if "area" not in targets.columns:
-        raise ValueError("An 'area' column is requred")
+        # raise ValueError("An 'area' column is requred")
+        proj = targets.to_crs(EPSG102022)["geometry"]
+        targets["area"] = proj.area
+        targets["x"] = proj.centroid.x
+        targets["y"] = proj.centroid.y
 
     return targets
 

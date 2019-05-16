@@ -27,8 +27,6 @@ setup(
         'shapely>=1.6.4',
         'scipy>=1.0.0',
         'scikit-learn>=0.17.1',
-        'rasterio>=1.0.7',
-        'rasterstats>=0.13.0'
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
