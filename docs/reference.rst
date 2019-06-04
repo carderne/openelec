@@ -4,14 +4,6 @@ API Reference
 Submodules
 ----------
 
-openelec.clustering module
---------------------------
-
-.. automodule:: openelec.clustering
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 openelec.conv module
 --------------------
 
