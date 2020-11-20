@@ -22,7 +22,7 @@ Described in my blog post here: [A Flask app for mini-grid planning with a cost-
 
 **Web App usage (click to get proper resolution)**
 
-[![Web App demo](https://thumbs.gfycat.com/SlimyNarrowFrigatebird-size_restricted.gif)](https://openelec.me/index.html#modalVideo)
+[![Web App demo](https://thumbs.gfycat.com/SlimyNarrowFrigatebird-size_restricted.gif)](https://openelec.rdrn.me/index.html#modalVideo)
 
 Model usage
 -----------
