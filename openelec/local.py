@@ -7,6 +7,8 @@ Includes LocalModel class and calculate_profit function.
 """
 
 import numpy as np
+import numpy_financial as npf
+
 
 from .model import Model
 from . import conv
@@ -184,7 +186,7 @@ class LocalModel(Model):
 
                 flows = np.ones(self.years) * (income - opex)
                 flows[0] = -capex
-                npv = np.npv(self.discount_rate, flows)
+                npv = npf.npv(self.discount_rate, flows)
 
                 # check if this is the most profitable yet
                 if best_npv is None or (npv > best_npv):
@@ -256,7 +258,7 @@ class LocalModel(Model):
 
         flows = np.ones(self.years) * (income - opex)
         flows[0] = -capex
-        npv = np.npv(self.discount_rate, flows)
+        npv = npf.npv(self.discount_rate, flows)
 
         self.results = {
             "connected": count_nodes,
