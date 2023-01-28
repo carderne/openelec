@@ -1,0 +1,327 @@
+/* General styling */
+body, html {
+    height: 100%;
+    font-family: 'Chivo', sans-serif;
+    background-color: #feffff;
+}
+
+.colorbg {
+    background-color: #5cdb95;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='1666.7' viewBox='0 0 1080 900'%3E%3Cg fill-opacity='0.08'%3E%3Cpolygon fill='%23444' points='90 150 0 300 180 300'/%3E%3Cpolygon points='90 150 180 0 0 0'/%3E%3Cpolygon fill='%23AAA' points='270 150 360 0 180 0'/%3E%3Cpolygon fill='%23DDD' points='450 150 360 300 540 300'/%3E%3Cpolygon fill='%23999' points='450 150 540 0 360 0'/%3E%3Cpolygon points='630 150 540 300 720 300'/%3E%3Cpolygon fill='%23DDD' points='630 150 720 0 540 0'/%3E%3Cpolygon fill='%23444' points='810 150 720 300 900 300'/%3E%3Cpolygon fill='%23FFF' points='810 150 900 0 720 0'/%3E%3Cpolygon fill='%23DDD' points='990 150 900 300 1080 300'/%3E%3Cpolygon fill='%23444' points='990 150 1080 0 900 0'/%3E%3Cpolygon fill='%23DDD' points='90 450 0 600 180 600'/%3E%3Cpolygon points='90 450 180 300 0 300'/%3E%3Cpolygon fill='%23666' points='270 450 180 600 360 600'/%3E%3Cpolygon fill='%23AAA' points='270 450 360 300 180 300'/%3E%3Cpolygon fill='%23DDD' points='450 450 360 600 540 600'/%3E%3Cpolygon fill='%23999' points='450 450 540 300 360 300'/%3E%3Cpolygon fill='%23999' points='630 450 540 600 720 600'/%3E%3Cpolygon fill='%23FFF' points='630 450 720 300 540 300'/%3E%3Cpolygon points='810 450 720 600 900 600'/%3E%3Cpolygon fill='%23DDD' points='810 450 900 300 720 300'/%3E%3Cpolygon fill='%23AAA' points='990 450 900 600 1080 600'/%3E%3Cpolygon fill='%23444' points='990 450 1080 300 900 300'/%3E%3Cpolygon fill='%23222' points='90 750 0 900 180 900'/%3E%3Cpolygon points='270 750 180 900 360 900'/%3E%3Cpolygon fill='%23DDD' points='270 750 360 600 180 600'/%3E%3Cpolygon points='450 750 540 600 360 600'/%3E%3Cpolygon points='630 750 540 900 720 900'/%3E%3Cpolygon fill='%23444' points='630 750 720 600 540 600'/%3E%3Cpolygon fill='%23AAA' points='810 750 720 900 900 900'/%3E%3Cpolygon fill='%23666' points='810 750 900 600 720 600'/%3E%3Cpolygon fill='%23999' points='990 750 900 900 1080 900'/%3E%3Cpolygon fill='%23999' points='180 0 90 150 270 150'/%3E%3Cpolygon fill='%23444' points='360 0 270 150 450 150'/%3E%3Cpolygon fill='%23FFF' points='540 0 450 150 630 150'/%3E%3Cpolygon points='900 0 810 150 990 150'/%3E%3Cpolygon fill='%23222' points='0 300 -90 450 90 450'/%3E%3Cpolygon fill='%23FFF' points='0 300 90 150 -90 150'/%3E%3Cpolygon fill='%23FFF' points='180 300 90 450 270 450'/%3E%3Cpolygon fill='%23666' points='180 300 270 150 90 150'/%3E%3Cpolygon fill='%23222' points='360 300 270 450 450 450'/%3E%3Cpolygon fill='%23FFF' points='360 300 450 150 270 150'/%3E%3Cpolygon fill='%23444' points='540 300 450 450 630 450'/%3E%3Cpolygon fill='%23222' points='540 300 630 150 450 150'/%3E%3Cpolygon fill='%23AAA' points='720 300 630 450 810 450'/%3E%3Cpolygon fill='%23666' points='720 300 810 150 630 150'/%3E%3Cpolygon fill='%23FFF' points='900 300 810 450 990 450'/%3E%3Cpolygon fill='%23999' points='900 300 990 150 810 150'/%3E%3Cpolygon points='0 600 -90 750 90 750'/%3E%3Cpolygon fill='%23666' points='0 600 90 450 -90 450'/%3E%3Cpolygon fill='%23AAA' points='180 600 90 750 270 750'/%3E%3Cpolygon fill='%23444' points='180 600 270 450 90 450'/%3E%3Cpolygon fill='%23444' points='360 600 270 750 450 750'/%3E%3Cpolygon fill='%23999' points='360 600 450 450 270 450'/%3E%3Cpolygon fill='%23666' points='540 600 630 450 450 450'/%3E%3Cpolygon fill='%23222' points='720 600 630 750 810 750'/%3E%3Cpolygon fill='%23FFF' points='900 600 810 750 990 750'/%3E%3Cpolygon fill='%23222' points='900 600 990 450 810 450'/%3E%3Cpolygon fill='%23DDD' points='0 900 90 750 -90 750'/%3E%3Cpolygon fill='%23444' points='180 900 270 750 90 750'/%3E%3Cpolygon fill='%23FFF' points='360 900 450 750 270 750'/%3E%3Cpolygon fill='%23AAA' points='540 900 630 750 450 750'/%3E%3Cpolygon fill='%23FFF' points='720 900 810 750 630 750'/%3E%3Cpolygon fill='%23222' points='900 900 990 750 810 750'/%3E%3Cpolygon fill='%23222' points='1080 300 990 450 1170 450'/%3E%3Cpolygon fill='%23FFF' points='1080 300 1170 150 990 150'/%3E%3Cpolygon points='1080 600 990 750 1170 750'/%3E%3Cpolygon fill='%23666' points='1080 600 1170 450 990 450'/%3E%3Cpolygon fill='%23DDD' points='1080 900 1170 750 990 750'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: auto auto;
+    /* background by SVGBackgrounds.com */
+}
+
+body {
+	display: flex;
+    flex-direction: column;
+}
+
+#map {
+	position: relative;
+	padding-left: 1px;
+	padding-right: 1px;
+}
+
+nav {
+	background-color: #015249;
+}
+
+.navbar-logo {
+    width: 80px;
+    padding-top: 10px;
+}
+
+.text-width {
+    word-wrap: break-word;
+    width: 60%;
+}
+
+.pane {
+	background-color: #feffff;
+}
+
+/*
+#rightPane {
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+*/
+
+.card {
+    height: 80%;
+}
+
+.slider-selection {
+	background: #BABABA;
+}
+
+/* For modal progress bar */
+.progress {
+	height: 50px;
+}
+
+.progress-bar-animated {
+	width: 100%;
+}
+
+body.modal-open {
+    padding-right: 0px !important; /* Fix weird behaviour with padding and modal */
+}
+
+/* Class to hide divs */
+div.hidden {
+	display: none;
+}
+
+/* Toggle menu to choose base map */
+#baseToggle {
+    background: #fff;
+    position: absolute;
+    z-index: 1;
+    top: 10px;
+    right: 10px;
+    border-radius: 3px;
+    width: 120px;
+    border: 1px solid rgba(0,0,0,0.4);
+    font-family: 'Open Sans', sans-serif;
+}
+
+#baseToggle a {
+    font-size: 13px;
+    color: #404040;
+    display: block;
+    margin: 0;
+    padding: 0;
+    padding: 10px;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0,0,0,0.25);
+    text-align: center;
+}
+
+#baseToggle a:last-child {
+    border: none;
+}
+
+.btn-primary {
+    background-color: #3887be;
+    border-color: #3887be;
+}
+
+#baseToggle a:hover {
+    background-color: #f8f8f8;
+    color: #404040;
+}
+
+#baseToggle a.active {
+    background-color: #3887be;
+    color: #ffffff;
+}
+
+#baseToggle a.active:hover {
+    background: #3074a4;
+}
+
+/* Map overlay message about clicking clusters etc */
+#map-announce {
+    z-index: 1;
+    font-family: 'Open Sans', sans-serif;
+    position: absolute;
+    width: 200px;
+    top: 10px;
+    left: 10px;
+    padding: 10px;
+    
+    background-color: #fff;
+    box-shadow:0 1px 2px rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+/* Message appears when the server is offline */
+#server-offline {
+    z-index: 1;
+    font-family: 'Open Sans', sans-serif;
+    position: absolute;
+    width: 200px;
+    top: 10px;
+    left: 50%;
+    padding: 10px;
+    margin-left: -100px; /* half width */
+    
+    background-color: #fff;
+    box-shadow:0 1px 2px rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+/* Dynamic slider container */
+#dynamic-box {
+    z-index: 1;
+    font-family: 'Open Sans', sans-serif;
+    position: absolute;
+    width: 300px;
+    top: 50px;
+    left: 50%;
+    padding: 10px;
+    margin-left: -150px; /* half width */
+    
+    background-color: #fff;
+    box-shadow:0 1px 2px rgba(0, 0, 0, 0.10);
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+/* Legend symbols */
+.legend-square {
+    display: inline-block;
+    border-radius: 20%;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+}
+
+.legend-line {
+    display: inline-block;
+    border-radius: 20%;
+    width: 10px;
+    height: 5px;
+    margin-right: 5px;
+}
+
+/* Parameter tooltips */
+.ttip {
+    position: relative;
+    display: inline-block;
+}
+
+.ttip .ttiptext, .switch .ttiptext {
+    visibility: hidden;
+    width: 180px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+    opacity: 0.9;
+    position: absolute;
+    z-index: 300;
+    top: -5px;
+    left: 105%; 
+}
+
+.ttip:hover .ttiptext, .switch:hover .ttiptext {
+    visibility: visible;
+}
+
+.switch {
+    font-size: 1rem;
+    position: relative;
+}
+.switch input {
+    position: absolute;
+    height: 1px;
+    width: 1px;
+    background: none;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    padding: 0;
+}
+.switch input + label {
+    position: relative;
+    min-width: calc(calc(2.375rem * .8) * 2);
+    border-radius: calc(2.375rem * .8);
+    height: calc(2.375rem * .8);
+    line-height: calc(2.375rem * .8);
+    display: inline-block;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    vertical-align: middle;
+    text-indent: calc(calc(calc(2.375rem * .8) * 2) + .5rem);
+}
+.switch input + label::before, .switch input + label::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(calc(2.375rem * .8) * 2);
+    bottom: 0;
+    display: block;
+}
+.switch input + label::before {
+    right: 0;
+    background-color: #dee2e6;
+    border-radius: calc(2.375rem * .8);
+    transition: 0.2s all;
+}
+.switch input + label::after {
+    top: 2px;
+    left: 2px;
+    width: calc(calc(2.375rem * .8) - calc(2px * 2));
+    height: calc(calc(2.375rem * .8) - calc(2px * 2));
+    border-radius: 50%;
+    background-color: white;
+    transition: 0.2s all;
+}
+.switch input:checked + label::before {
+    background-color: #08d;
+}
+.switch input:checked + label::after {
+    margin-left: calc(2.375rem * .8);
+}
+.switch input:focus + label::before {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 136, 221, .25);
+}
+.switch input:disabled + label {
+    color: #868e96;
+    cursor: not-allowed;
+}
+.switch input:disabled + label::before {
+    background-color: #e9ecef;
+}
+.switch.switch-sm {
+    font-size: 0.875rem;
+}
+.switch.switch-sm input + label {
+    min-width: calc(calc(1.9375rem * .8) * 2);
+    height: calc(1.9375rem * .8);
+    line-height: calc(1.9375rem * .8);
+    text-indent: calc(calc(calc(1.9375rem * .8) * 2) + .5rem);
+}
+.switch.switch-sm input + label::before {
+    width: calc(calc(1.9375rem * .8) * 2);
+}
+.switch.switch-sm input + label::after {
+    width: calc(calc(1.9375rem * .8) - calc(2px * 2));
+    height: calc(calc(1.9375rem * .8) - calc(2px * 2));
+}
+.switch.switch-sm input:checked + label::after {
+    margin-left: calc(1.9375rem * .8);
+}
+.switch + .switch {
+    margin-left: 1rem;
+}
+
+.center {
+    text-align: center;
+    overflow: hidden; 
+}
+
+.right {
+    float: right;
+}
+
+.left {
+    float: left;
+}
+
+#run-model {
+    cursor: default;
+}

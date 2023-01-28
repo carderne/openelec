@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>openelec</title>
+
+<meta name="description" content="Find opportunities and optimise pathways for universal electricity access.">
+<meta property="og:site_name" content="openelec">
+<meta property="og:type" content="website">
+<meta property="og:title" content="openelec">
+<meta property="og:description" content="Find opportunities and optimise pathways for universal electricity access.">
+<meta property="og:url" content="/">
+<meta property="og:image" content="favicon-1024.png">
+<meta name="twitter:title" content="openelec">
+<meta name="twitter:description" content="Find opportunities and optimise pathways for universal electricity access.">
+<meta name="twitter:url" content="/">
+<meta name="twitter:image" content="favicon-1024.png">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1280">
+
+</head>
+<body class="colorbg">
+
+<!-- Nav Bar -->
+<nav class="navbar navbar-dark navbar-expand-md navbar-dark justify-content-between shad" style="height:6%;">
+
+  <!-- Collapse button -->
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".dual-nav">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <!-- Left aligned links -->
+  <div class="navbar-collapse collapse dual-nav w-25 order-1 order-md-0">
+    <ul class="navbar-nav">
+      <li class="nav-item active">
+          <a class="brand navbar-brand pl-0" href="#" id="go-home">openelec <%= htmlWebpackPlugin.options.tag %></a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Middle button group -->
+  <div class="btn-group justify-content-center order-2" data-toggle="buttons">
+    <button type="button" class="btn btn-primary" id="go-plan">Plan pathways</button>
+    <button type="button" class="btn btn-primary" id="go-find">Find opportunities</button>
+  </div>
+
+  <!-- Right aligned links -->
+  <div class="navbar-collapse collapse dual-nav w-25 order-2">
+    <ul class="nav navbar-nav ml-auto">
+      <li class="nav-item">
+        <!-- Button trigger modal -->
+        <a class="nav-link" href="#" data-toggle="modal" data-target="#modalVideo">Walkthrough</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" id="go-about">About</a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Main content container -->
+<!-- Only one 'row' within is visible at a time -->
+<!-- Controlled with the hidden class -->
+<div class="container-fluid flex-column d-flex" style="height:94%;">
+
+  <!-- Landing page -->
+  <div class="row flex-grow-1" id="landing">
+      <div class="col fluid px-5 py-3">
+        <div class="text-width">
+          <h1 class="display-1" style="display:inline">openelec</h1> BETA
+          <br>
+          <p class="lead">
+            Find opportunities and optimise pathways for universal electricity access.
+            Combine high-resolution satellite and OpenStreetMap data with advanced optimisation strategies
+            to find the best technologies and investments down to household level.
+          </p>
+          <p style="color:red">
+            Note: I've turned off the backend, so any functionality relying on that infrastructure
+            (anything that involved clicking 'Run model') will not work. You can still browse and
+            filter the data for each country. If you'd like to use the model offline or get the
+            backend running, please contact me or check out the
+            <a href="https://github.com/carderne/openelec">code</a>.
+          </p>
+          <hr class="my-4">
+          <h3>Choose below to start exploring!</h3>
+          <p class="text-muted">
+            Or click <a href="#" data-toggle="modal" data-target="#modalVideo">here</a> to see how it works.
+            And <a href="mailto:chris@rdrn.me">chris@rdrn.me</a> to get in touch.
+          </p>
+          <p class="lead">
+            <button type="button" class="btn btn-primary btn-lg" id="go-plan-big">Plan pathways</button>
+            <button type="button" class="btn btn-primary btn-lg" id="go-find-big">Find opportunities</button>
+          </p>
+        </div>
+    </div>
+  </div>
+
+  <!-- Choose country page -->
+  <div class="row flex-grow-1 hidden" id="countries">
+    <div class="col fluid px-5 py-3">
+      <br>
+      <h1 class="display-4">Choose a country</h1>
+      <div class="card-deck" id="country-list"></div>
+    </div>
+  </div>
+
+  <!-- About page -->
+  <div class="row flex-grow-1 hidden" id="about">
+      <div class="col fluid px-5 py-3">
+        <div class="text-width">
+          <h1 class="display-4">About openelec</h1>
+          <p class="lead">
+            A front-end to showcase some of the functionality of the open source tool openelec,
+            available <a href="https://github.com/carderne/openelec">here</a>. Please get in
+            touch on my GitHub page or here: <a href="mailto:chris@rdrn.me">chris@rdrn.me</a>
+          </p>
+          <p class="lead">
+            I developed this following my experiences with electricity access planning tools, which
+            are largely proprietary, expensive and bad. At the same time, there aren't many available
+            tools for finding off-grid electricity access options that take advantage of all the data
+            available and allow modelling freedom in choosing sites.
+          </p>
+          <p class="lead">
+            There are two primary modes in the tool: planning and finding. The first is aimed at public planners,
+            and uses input variables to determine the overall least-cost electrification option for the country.
+            The second is aimed at private developers, and uses a simple filter and priority 'score' to find good
+            opportunities for off-grid electrification.
+          </p>
+          <p class="lead">
+            In addition to this, either mode allows the user to click on any settlement ('cluster') to zoom in to
+            a local view, where building data is extracted from OpenStreetMap for a local analysis. This finds 
+            the optimum local network for a mini-grid development, based on input parameters.
+          </p>
+          <p>© Chris Arderne</p>
+        </div>
+      </div>
+  </div>
+
+  <!-- Main explore page -->
+  <div class="row flex-fill hidden" id="explore">
+
+    <!-- Left fixed pane for parameter entry -->
+    <div class="col py-3 pane" id="leftPane">
+      <h3 class="ml-3 hidden-sm-down text country-name"></h3>
+      <button type="button" class="btn btn-secondary btn-sm disabled" id="run-model" disabled></button>
+      <button type="button" class="btn btn-primary btn-sm" id="change-country">Change country</button>
+      <div class="py-3">
+        <div class="form-group">
+          <span class="switch switch-sm">
+            <span class="ttiptext">Whether to use dynamic time steps. Much slower, only enabled for small countries.</span>
+            <input type="checkbox" class="switch" id="switch-dynamic">
+            <label for="switch-dynamic">Use time steps</label>
+          </span>
+        </div>
+        <div class="form-group">
+          <span class="switch switch-sm">
+            <span class="ttiptext">Whether to override demand formula with MTF.</span>
+            <input type="checkbox" class="switch" id="switch-mtf">
+            <label for="switch-mtf">Use MTF levels</label>
+          </span>
+        </div>
+        <div id="sliders"></div>
+    </div>
+    </div>
+
+    <!-- Central flexible area for map -->
+    <div class="col-sm-7 px-0" id="map">
+      <nav id="baseToggle"></nav>
+      <div id='map-announce'></div>
+      <div class='text-danger hidden' id='server-offline'><h6>Server offline, functionality limited.</h6></div>
+      <div class='text-dark center hidden' id='dynamic-box'>
+        <button type="button" class="btn btn-secondary btn-sm left" id="prev-step">Prev step</button>
+        <span class="h3 text-center" id="step-year">2025</span>
+        <button type="button" class="btn btn-secondary btn-sm right" id="next-step">Next step</button>
+      </div>
+    </div>
+    
+    <!-- Right fixed pane for summary result display -->
+    <div class="col py-3 pane" id="rightPane">
+      <button type="button" class="btn btn-primary btn-sm" id="download-results">Download clusters</button>
+      <a id="hiddenDownload"></a>
+      <div class="py-1" id="legend"></div>
+      <div id="country-overview"></div>
+      <div id="summary" style="width: 100%;"></div>
+    </div>
+  </div>
+
+  <!-- Modal loading bar for running model -->
+  <div class="modal" id="loading-bar">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div id="loading-text"></div>
+            <h3 id="loading-message"></h3>
+            <div class="progress progress-popup">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalVideo" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLongTitle">Example usage</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <video width="100%" controls>
+          <source src="openelec_video.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video> 
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
